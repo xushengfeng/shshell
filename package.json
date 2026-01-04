@@ -17,7 +17,7 @@
     "homepage": "https://github.com/xushengfeng/view/",
     "license": "GPL-3.0",
     "dependencies": {
-        "dkh-ui": "^0.11.0",
+        "dkh-ui": "^0.14.2",
         "node-pty": "^1.1.0"
     },
     "devDependencies": {
