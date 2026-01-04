@@ -18,11 +18,13 @@
     "license": "GPL-3.0",
     "dependencies": {
         "dkh-ui": "^0.14.2",
-        "node-pty": "^1.1.0"
+        "node-pty": "^1.1.0",
+        "ssh2": "^1.17.0"
     },
     "devDependencies": {
         "@biomejs/biome": "^1.9.2",
         "@types/node": "^20.3.3",
+        "@types/ssh2": "^1.15.5",
         "electron": "^31.4.0",
         "electron-builder": "^24.4.0",
         "electron-vite": "^4.0.0",

@@ -1,8 +1,102 @@
 import { initDKH, input, spacer, textarea, txt, view } from "dkh-ui";
+import type { IPty } from "node-pty";
 const path = require("node:path") as typeof import("node:path");
 const fs = require("node:fs") as typeof import("node:fs");
-const pty = require("node-pty") as typeof import("node-pty");
 const process = require("node:process") as typeof import("node:process");
+const pty = require("node-pty") as typeof import("node-pty");
+const { Client } = require("ssh2") as typeof import("ssh2");
+
+class Sh {
+    private conn: import("ssh2").Client | undefined;
+    init(op?: { host: string; port: number; username: string; privateKey: string }) {
+        if (op) {
+            this.conn = new Client();
+            this.conn
+                .on("ready", () => {
+                    console.log("Client :: ready");
+                })
+                .connect({
+                    host: op.host,
+                    port: op.port,
+                    username: op.username,
+                    privateKey: op.privateKey,
+                });
+        }
+    }
+    run(
+        command: string,
+        args: string[],
+        op: {
+            cols: number;
+            rows: number;
+            cwd: string;
+            env: Record<string, string>;
+        },
+    ): {
+        onData: (cb: (data: string) => void) => void;
+        onExit: (cb: () => void) => void;
+    } & (
+        | {
+              type: "local";
+              _local: IPty;
+          }
+        | {
+              type: "ssh";
+              _ssh: import("ssh2").Client;
+          }
+    ) {
+        if (this.conn) {
+            // ssh
+            return {
+                onData: (cb: (data: string) => void) => {
+                    // todo 验证执行
+                    this.conn?.exec(
+                        `cd ${op.cwd} && ${command} ${args.join(" ")}`,
+                        { env: op.env, pty: { cols: op.cols, rows: op.rows } },
+                        (err, stream) => {
+                            if (err) throw err;
+                            stream.on("data", (data) => {
+                                cb(data.toString());
+                            });
+                            stream.on("close", () => {
+                                exitCb();
+                            });
+                        },
+                    );
+                },
+                onExit: (cb: () => void) => {
+                    exitCb = cb;
+                },
+                type: "ssh",
+                _ssh: this.conn,
+            };
+        }
+        // local
+        const ptyProcess = pty.spawn(command, args, {
+            name: "xterm-color",
+            ...op,
+        });
+        let exitCb = () => {};
+        return {
+            onData: (cb: (data: string) => void) => {
+                ptyProcess.onData((data) => {
+                    // todo parse ANSI escape codes
+                    // todo 数据有时不完整
+                    // https://github.com/microsoft/node-pty/issues/72
+                    // https://github.com/microsoft/node-pty/issues/85
+                    cb(data);
+                });
+            },
+            onExit: (cb: () => void) => {
+                ptyProcess.onExit(() => {
+                    cb();
+                });
+            },
+            type: "local",
+            _local: ptyProcess,
+        };
+    }
+}
 
 class Page {
     env: Record<string, string> = { ...process.env } as Record<string, string>;
@@ -21,7 +115,7 @@ class Page {
     private inputAreaEl = view().addInto(this.mainEl);
     private inputPromptEl = view().addInto(this.inputAreaEl);
     private inputCommandEl = input().addInto(this.inputAreaEl);
-    constructor(op?: { inputPrompt?: string }) {
+    constructor(op: { inputPrompt?: string; sh: Sh }) {
         const finish = () => {
             const binDir = new Set(["/bin", "/usr/bin", "/usr/local/bin"]);
             for (const dir of process.env.PATH?.split(":") || []) binDir.add(dir);
@@ -110,22 +204,19 @@ class Page {
 
             console.log("run", com, this.cwd, this.env);
 
-            const ptyProcess = pty.spawn(com[0], com.slice(1), {
-                name: "xterm-color",
+            const sh = op.sh;
+
+            const shProcess = sh.run(com[0], com.slice(1), {
                 cols: 80,
                 rows: 30,
                 cwd: this.cwd,
                 env: this.env,
             });
 
-            ptyProcess.onData((data) => {
-                // todo parse ANSI escape codes
-                // todo 数据有时不完整
-                // https://github.com/microsoft/node-pty/issues/72
-                // https://github.com/microsoft/node-pty/issues/85
+            shProcess.onData((data) => {
                 outputEl.sv(outputEl.gv + data);
             });
-            ptyProcess.onExit(() => {
+            shProcess.onExit(() => {
                 finish2();
             });
         });
@@ -172,6 +263,7 @@ initDKH({
 });
 const p1 = new Page({
     inputPrompt: "<${cwd}${spacer}>\n$ ${cursor}",
+    sh: new Sh(),
 });
 p1.mainEl
     .style({
