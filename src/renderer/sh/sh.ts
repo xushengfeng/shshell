@@ -6,6 +6,14 @@ const process = require("node:process") as typeof import("node:process");
 const pty = require("node-pty") as typeof import("node-pty");
 const { Client } = require("ssh2") as typeof import("ssh2");
 
+function tryX<T>(x: () => T): [T, null] | [null, Error] {
+    try {
+        return [x(), null];
+    } catch (error) {
+        return [null, error as Error];
+    }
+}
+
 class Sh {
     private conn: import("ssh2").Client | undefined;
     init(op?: { host: string; port: number; username: string; privateKey: string }) {
@@ -115,6 +123,10 @@ class Page {
     private inputAreaEl = view().addInto(this.mainEl);
     private inputPromptEl = view().addInto(this.inputAreaEl);
     private inputCommandEl = input().addInto(this.inputAreaEl);
+    private inputTipEl = view()
+        // todo 虚拟滚动
+        .style({ width: "300px", maxHeight: "300px", overflow: "scroll" })
+        .addInto(this.inputAreaEl);
     constructor(op: { inputPrompt?: string; sh: Sh }) {
         const finish = () => {
             const binDir = new Set(["/bin", "/usr/bin", "/usr/local/bin"]);
@@ -154,7 +166,154 @@ class Page {
             this.inputCommandEl.el.focus();
         };
 
-        this.inputCommandEl.on("change", () => {
+        type InputTip = { x: string; des: string }[];
+
+        let tipController: ReturnType<typeof showInputTip> | null = null;
+        let tipX: ReturnType<typeof getTip> | null = null;
+
+        const showInputTip = (list: InputTip) => {
+            let index = 0;
+            let cbSelect: (selected: string) => void = () => {};
+            const ll = list.map((i) => {
+                const el = view("x").add([i.x, spacer(), txt(i.des).style({ color: "#888" })]);
+                el.on("click", () => {
+                    cbSelect(i.x);
+                    this.inputTipEl.clear();
+                });
+                return { ...i, el };
+            });
+            this.inputTipEl.clear().add(ll.map((i) => i.el));
+
+            return {
+                up: () => {
+                    if (index > 0) index--;
+                    if (index === 0) index = ll.length - 1;
+                },
+                down: () => {
+                    if (index < ll.length - 1) index++;
+                    else index = 0;
+                },
+                select: () => {
+                    cbSelect(ll[index].x);
+                    this.inputTipEl.clear();
+                },
+                clear: () => {
+                    this.inputTipEl.clear();
+                },
+                onSelect: (cb: (selected: string) => void) => {
+                    cbSelect = cb;
+                },
+            };
+        };
+
+        const getTip = (
+            input: string,
+            cursorStart: number,
+            cursorEnd: number,
+        ): { list: InputTip; pre: string; last: string } => {
+            const res: InputTip = [];
+
+            // todo 解析
+            const _start = input
+                .slice(0, cursorStart)
+                .split("")
+                .findLastIndex((i) => i === " ");
+            const _end = input.slice(cursorEnd).indexOf(" ");
+            const start = _start === -1 ? 0 : _start + 1;
+            const end = _end === -1 ? input.length : _end;
+            const pre = input.slice(0, start);
+            const last = input.slice(end);
+            const cur = input.slice(start, end);
+
+            console.log({ pre, cur, last });
+
+            if (pre.includes(" ")) {
+                // is path
+                if (!cur.endsWith("/") && cur !== "") {
+                    return { list: [{ x: `${cur}/`, des: "" }], pre, last };
+                }
+                const p = path.isAbsolute(cur) ? cur : path.join(this.cwd, cur);
+                // todo 定位到光标所在位置
+                const [dir] = tryX(() => fs.readdirSync(p));
+                for (const file of dir ?? []) {
+                    const [stat] = tryX(() => fs.statSync(path.join(p, file)));
+                    if (!stat) {
+                        res.push({ x: file, des: "error" });
+                    } else if (stat.isDirectory()) {
+                        res.push({ x: file, des: "dir" });
+                    } else {
+                        res.push({ x: file, des: "file" });
+                    }
+                }
+            } else {
+                const l = this.allCommands();
+                for (const cmd of l) {
+                    if (cmd.startsWith(cur)) {
+                        res.push({ x: cmd, des: "" });
+                    }
+                }
+            }
+            return { list: res.slice(0, 500), pre, last };
+        };
+
+        this.inputCommandEl.on("keydown", (e) => {
+            if (e.key === "ArrowUp" || e.key === "ArrowDown") {
+                if (tipController) {
+                    e.preventDefault();
+                    if (e.key === "ArrowUp") {
+                        tipController.up();
+                    } else {
+                        tipController.down();
+                    }
+                }
+            }
+            if (e.key === "Tab") {
+                e.preventDefault();
+                tipX = getTip(
+                    this.inputCommandEl.gv,
+                    this.inputCommandEl.el.selectionStart || 0,
+                    this.inputCommandEl.el.selectionEnd || 0,
+                );
+                const { list, pre, last } = tipX;
+                if (list.length === 0) {
+                    return;
+                }
+                if (list.length === 1) {
+                    this.inputCommandEl.sv(pre + list[0].x + last);
+                    return;
+                }
+                tipController = showInputTip(list);
+                tipController.onSelect((selected) => {
+                    if (tipX) {
+                        const { pre, last } = tipX;
+                        this.inputCommandEl.sv(pre + selected + last);
+                        tipX = null;
+
+                        this.inputCommandEl.el.focus();
+                    }
+                });
+            }
+            if (e.key === "Enter") {
+                if (tipController && tipX) {
+                    e.preventDefault();
+                    tipController.select();
+                    tipController = null;
+                } else {
+                    e.preventDefault();
+                    commit();
+                }
+            }
+            if (e.key === "Escape") {
+                if (tipController && tipX) {
+                    e.preventDefault();
+                    tipController.clear();
+                    tipController = null;
+                    tipX = null;
+                }
+            }
+        });
+
+        const commit = () => {
             const command = this.inputCommandEl.gv;
             this.inputCommandEl.sv("");
             this.inputCommandEl.attr({ disabled: true });
@@ -165,7 +324,7 @@ class Page {
 
             historyEl.addInto(this.historyEl);
 
-            const com = command.split(" ");
+            const com = command.trim().split(" ");
             if (com.length === 0) {
                 finish();
                 return;
@@ -219,7 +378,7 @@ class Page {
             shProcess.onExit(() => {
                 finish2();
             });
-        });
+        };
 
         if (op?.inputPrompt) {
             this.setInputPrompt(op.inputPrompt);
