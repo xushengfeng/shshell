@@ -1,9 +1,11 @@
-import { txt, view, pack } from "dkh-ui";
+import { txt, view, pack, type ElType } from "dkh-ui";
+import { wcswidth } from "simple-wcswidth";
 import { parseOut, type ShOutputItem } from "./parser_out";
 
 export class Render {
     el = view();
     private mainEl = view();
+    private seg = new Intl.Segmenter("en", { granularity: "grapheme" });
     private colorMap = {
         background: {
             _black: "#000000",
@@ -51,7 +53,23 @@ export class Render {
         const gLineEl = () => view().style({ minHeight: "1lh", lineBreak: "anywhere" });
         const renderText = (item: ShOutputItem) => {
             if (item.type === "text") {
-                const textEl = txt(item.text).style({ whiteSpace: "pre-wrap" });
+                const l: (string | ElType<HTMLElement>)[] = [];
+                for (const i of Array.from(this.seg.segment(item.text))) {
+                    const w = wcswidth(i.segment);
+                    if (w === 2) {
+                        l.push(txt(i.segment).style({ display: "inline-block", width: "2ch" }));
+                    } else {
+                        const last = l.at(-1);
+                        if (last) {
+                            if (typeof last === "string") {
+                                l[l.length - 1] = last + i.segment;
+                            } else {
+                                l.push(i.segment);
+                            }
+                        } else l.push(i.segment);
+                    }
+                }
+                const textEl = txt().add(l).style({ whiteSpace: "pre-wrap" });
                 // 应用样式
                 if (item.style) {
                     const s = item.style;

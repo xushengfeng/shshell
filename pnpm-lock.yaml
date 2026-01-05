@@ -20,6 +20,9 @@ importers:
       node-pty:
         specifier: ^1.1.0
         version: 1.1.0
+      simple-wcswidth:
+        specifier: ^1.1.2
+        version: 1.1.2
       ssh2:
         specifier: ^1.17.0
         version: 1.17.0
@@ -1832,6 +1835,9 @@ packages:
   simple-update-notifier@1.1.0:
     resolution: {integrity: sha512-VpsrsJSUcJEseSbMHkrsrAVSdvVS5I96Qo1QAQ4FxQ9wXFcB+pjj7FB7/us9+GcgfW4ziHtYMc1J0PLczb55mg==}
     engines: {node: '>=8.10.0'}
+
+  simple-wcswidth@1.1.2:
+    resolution: {integrity: sha512-j7piyCjAeTDSjzTSQ7DokZtMNwNlEAyxqSZeCS+CXH7fJ4jx3FuJ/mTW3mE+6JLs4VJBbcll0Kjn+KXI5t21Iw==}
 
   slice-ansi@3.0.0:
     resolution: {integrity: sha512-pSyv7bSTC7ig9Dcgbw9AuRNUb5k5V6oDudjZoMBSr13qpLBG7tB+zgCkARjq7xIUgdz5P1Qe8u+rSGdouOOIyQ==}
@@ -3931,6 +3937,8 @@ snapshots:
   simple-update-notifier@1.1.0:
     dependencies:
       semver: 7.0.0
+
+  simple-wcswidth@1.1.2: {}
 
   slice-ansi@3.0.0:
     dependencies:
