@@ -1,11 +1,14 @@
-import { initDKH, input, spacer, textarea, txt, view } from "dkh-ui";
+import { button, initDKH, input, spacer, txt, view } from "dkh-ui";
 import type { IPty } from "node-pty";
 const path = require("node:path") as typeof import("node:path");
 const fs = require("node:fs") as typeof import("node:fs");
 const process = require("node:process") as typeof import("node:process");
 const pty = require("node-pty") as typeof import("node-pty");
 const { Client } = require("ssh2") as typeof import("ssh2");
+import { Terminal } from "@xterm/xterm";
+import "@xterm/xterm/css/xterm.css";
 import { parseIn, type ShInputItem } from "./parser_in";
+import { Render } from "./output_render";
 
 function tryX<T>(x: () => T): [T, null] | [null, Error] {
     try {
@@ -379,9 +382,37 @@ class Page {
             this.inputCommandElP.sv("");
             this.inputCommandEl.attr({ disabled: true });
 
+            let rawT = "";
+
             const historyEl = view("y");
-            txt("$ ").add(getInputStyle(command)).addInto(historyEl);
-            const outputEl = textarea().attr({ readOnly: true }).addInto(historyEl);
+            const bar = view("x").addInto(historyEl);
+            txt("$ ")
+                .add(getInputStyle(command))
+                .style({ position: "sticky", top: 0, zIndex: 1, backgroundColor: "#fff" })
+                .addInto(bar);
+            bar.add(spacer());
+            button("xterm")
+                .addInto(bar)
+                .on("click", () => {
+                    const term = new Terminal({
+                        fontFamily: "'FiraCode Nerd Font Mono'",
+                        theme: {
+                            background: "#fff",
+                            foreground: "#000",
+                        },
+                        rows: 1,
+                    });
+                    term.onRender(() => {
+                        term.resize(term.cols, Math.min(30, term.buffer.normal.length));
+                    });
+                    const termEl = view().addInto(outputEl);
+                    term.open(termEl.el);
+                    term.write(rawT);
+                });
+
+            const outputEl = view().addInto(historyEl);
+            const term = new Render();
+            outputEl.add(term.el);
 
             historyEl.addInto(this.historyEl);
 
@@ -395,7 +426,7 @@ class Page {
 
             const finish2 = () => {
                 dataItem.finishTime = Date.now();
-                dataItem.outputRender = outputEl.gv;
+                dataItem.outputRender = rawT; // todo
                 finish();
             };
 
@@ -419,7 +450,7 @@ class Page {
             }
 
             if (!this.allCommands().has(com[0])) {
-                outputEl.sv(`Command not found: ${com[0]}\n`);
+                term.write(`Command not found: ${com[0]}\n`);
                 finish2();
                 return;
             }
@@ -436,7 +467,8 @@ class Page {
             });
 
             shProcess.onData((data) => {
-                outputEl.sv(outputEl.gv + data);
+                rawT += data;
+                term.write(data);
             });
             shProcess.onExit(() => {
                 finish2();
