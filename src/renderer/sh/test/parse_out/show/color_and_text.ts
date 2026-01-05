@@ -6,13 +6,16 @@ console.log("aaaaAAAAMMMM\n你好🚀🚀测试");
 
 // --- 2. 补充其他变种样式 (Variants) ---
 const styles = [
-    { name: "正常(Normal)", fn: (t) => t }, // Default
+    { name: "正常(Normal)", fn: (t: string) => t }, // Default
     { name: "加粗(Bold)", fn: chalk.bold },
     { name: "减淡(Dim)", fn: chalk.dim },
     { name: "斜体(Italic)", fn: chalk.italic },
-    { name: "下划线(Underscore)", fn: chalk.underline },
+    { name: "下划线(Underline)", fn: chalk.underline },
+    { name: "上划线(Overline)", fn: chalk.overline },
+    { name: "双下划线(Double Underline)", fn: (t: string) => `\x1b[21m${t}\x1b[24m` },
     { name: "反转(Inverse)", fn: chalk.inverse },
     { name: "删除线(Strike)", fn: chalk.strikethrough },
+    { name: "闪烁(Blink)", fn: (t: string) => `\x1b[5m${t}\x1b[25m` },
 ];
 
 console.log("\n--- 样式变种演示 (Variants Demo) ---");
@@ -23,7 +26,7 @@ console.log(styles.map((s) => s.fn(s.name)).join(" "));
 // 定义颜色：格式为 { name: "中文(English)", fn: ... }
 
 const fgColors = [
-    { name: "Default", fn: (t) => t }, // 无前景色
+    { name: "Default", fn: (t: string) => t }, // 无前景色
     { name: "Black", fn: chalk.black },
     { name: "Red", fn: chalk.red },
     { name: "Green", fn: chalk.green },
@@ -35,7 +38,7 @@ const fgColors = [
 ];
 
 const bgColors = [
-    { name: "Default", fn: (t) => t }, // 无背景色
+    { name: "Default", fn: (t: string) => t }, // 无背景色
     { name: "Black", fn: chalk.bgBlack },
     { name: "Red", fn: chalk.bgRed },
     { name: "Green", fn: chalk.bgGreen },

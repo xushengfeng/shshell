@@ -92,6 +92,9 @@ export class Render {
                     if (s.bold) textEl.style({ fontWeight: "bold" });
                     if (s.italic) textEl.style({ fontStyle: "italic" });
                     if (s.underline) textEl.style({ textDecoration: "underline" });
+                    if (s.dbunderline) textEl.style({ textDecoration: "underline double" });
+                    if (s.overline) textEl.style({ textDecoration: "overline" });
+                    // todo blink
                     if (s.strikethrough) textEl.style({ textDecoration: "line-through" });
                     if (s.hidden) textEl.style({ visibility: "hidden" });
                     if (s.dim) textEl.style({ opacity: "0.6" });

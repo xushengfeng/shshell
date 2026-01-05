@@ -21,11 +21,14 @@ export type ShOutputItemText = {
     type: "text";
     text: string;
     style: {
+        // see https://terminalguide.namepad.de/attr/
         color?: SemanticColor | string;
         bgColor?: SemanticColor | string;
         bold?: boolean;
         italic?: boolean;
         underline?: boolean;
+        dbunderline?: boolean;
+        overline?: boolean;
         dim?: boolean;
         blink?: boolean;
         inverse?: boolean;
@@ -200,16 +203,20 @@ function applySgr(style: ShOutputItemText["style"], params: number[]) {
         else if (code === 7) style.inverse = true;
         else if (code === 8) style.hidden = true;
         else if (code === 9) style.strikethrough = true;
-        else if (code === 21) style.bold = false;
+        else if (code === 21) style.dbunderline = true;
         else if (code === 22) {
             style.bold = false;
             style.dim = false;
         } else if (code === 23) style.italic = false;
-        else if (code === 24) style.underline = false;
-        else if (code === 25) style.blink = false;
+        else if (code === 24) {
+            style.underline = false;
+            style.dbunderline = false;
+        } else if (code === 25) style.blink = false;
         else if (code === 27) style.inverse = false;
         else if (code === 28) style.hidden = false;
         else if (code === 29) style.strikethrough = false;
+        else if (code === 53) style.overline = true;
+        else if (code === 55) style.overline = false;
         // Foreground
         else if (code >= 30 && code <= 37) style.color = getSemanticColor(code);
         else if (code >= 90 && code <= 97) style.color = getSemanticColor(code);
