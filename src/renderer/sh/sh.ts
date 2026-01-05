@@ -5,6 +5,7 @@ const fs = require("node:fs") as typeof import("node:fs");
 const process = require("node:process") as typeof import("node:process");
 const pty = require("node-pty") as typeof import("node-pty");
 const { Client } = require("ssh2") as typeof import("ssh2");
+import { parseIn, type ShInputItem } from "./parser_in";
 
 function tryX<T>(x: () => T): [T, null] | [null, Error] {
     try {
@@ -122,7 +123,24 @@ class Page {
     historyEl = view("y").addInto(this.mainEl);
     private inputAreaEl = view().addInto(this.mainEl);
     private inputPromptEl = view().addInto(this.inputAreaEl);
-    private inputCommandEl = input().addInto(this.inputAreaEl);
+    private inputCommandElP = view()
+        .style({ position: "relative" })
+        .addInto(this.inputAreaEl)
+        .bindSet((v: string) => {
+            this.inputCommandEl.sv(v);
+            this.inputCommandEl.el.dispatchEvent(new Event("input"));
+        });
+    private inputCommandStyleEl = view().style({ whiteSpace: "pre" }).addInto(this.inputCommandElP);
+    private inputCommandEl = input()
+        .style({
+            position: "absolute",
+            top: 0,
+            color: "transparent",
+            backgroundColor: "transparent",
+            caretColor: "black",
+        })
+        .attr({ spellcheck: false })
+        .addInto(this.inputCommandElP);
     private inputTipEl = view()
         // todo 虚拟滚动
         .style({ width: "300px", maxHeight: "300px", overflow: "scroll" })
@@ -147,7 +165,7 @@ class Page {
                 return l
                     .map((i) => {
                         if (i === this.inputPromptSymbol.cursor) {
-                            return this.inputCommandEl;
+                            return this.inputCommandElP;
                         }
                         if (i === this.inputPromptSymbol.spacer) {
                             return spacer();
@@ -166,16 +184,17 @@ class Page {
             this.inputCommandEl.el.focus();
         };
 
-        type InputTip = { x: string; des: string }[];
+        type InputTip = { show?: string; x: string; des: string }[];
 
         let tipController: ReturnType<typeof showInputTip> | null = null;
         let tipX: ReturnType<typeof getTip> | null = null;
 
         const showInputTip = (list: InputTip) => {
+            let show = true;
             let index = 0;
             let cbSelect: (selected: string) => void = () => {};
             const ll = list.map((i) => {
-                const el = view("x").add([i.x, spacer(), txt(i.des).style({ color: "#888" })]);
+                const el = view("x").add([i.show ?? i.x, spacer(), txt(i.des).style({ color: "#888" })]);
                 el.on("click", () => {
                     cbSelect(i.x);
                     this.inputTipEl.clear();
@@ -194,10 +213,12 @@ class Page {
                     else index = 0;
                 },
                 select: () => {
+                    if (!show) return;
                     cbSelect(ll[index].x);
                     this.inputTipEl.clear();
                 },
                 clear: () => {
+                    show = false;
                     this.inputTipEl.clear();
                 },
                 onSelect: (cb: (selected: string) => void) => {
@@ -213,48 +234,88 @@ class Page {
         ): { list: InputTip; pre: string; last: string } => {
             const res: InputTip = [];
 
-            // todo 解析
-            const _start = input
-                .slice(0, cursorStart)
-                .split("")
-                .findLastIndex((i) => i === " ");
-            const _end = input.slice(cursorEnd).indexOf(" ");
-            const start = _start === -1 ? 0 : _start + 1;
-            const end = _end === -1 ? input.length : _end;
-            const pre = input.slice(0, start);
-            const last = input.slice(end);
-            const cur = input.slice(start, end);
+            const parse = parseIn(input);
+            const pos = Math.min(cursorStart, cursorEnd);
 
-            console.log({ pre, cur, last });
+            let matchIndex = -1;
+            let matchParseItem: ShInputItem | undefined = undefined;
 
-            if (pre.includes(" ")) {
-                // is path
-                if (!cur.endsWith("/") && cur !== "") {
-                    return { list: [{ x: `${cur}/`, des: "" }], pre, last };
+            for (const [i, item] of parse.entries()) {
+                if (item.start <= pos && item.end >= pos) {
+                    matchIndex = i;
+                    matchParseItem = item;
+                    if (item.type !== "blank") break;
                 }
-                const p = path.isAbsolute(cur) ? cur : path.join(this.cwd, cur);
-                // todo 定位到光标所在位置
-                const [dir] = tryX(() => fs.readdirSync(p));
-                for (const file of dir ?? []) {
-                    const [stat] = tryX(() => fs.statSync(path.join(p, file)));
-                    if (!stat) {
-                        res.push({ x: file, des: "error" });
-                    } else if (stat.isDirectory()) {
-                        res.push({ x: file, des: "dir" });
-                    } else {
-                        res.push({ x: file, des: "file" });
-                    }
-                }
-            } else {
+            }
+
+            if (matchIndex === -1 || !matchParseItem) {
+                console.log(input, parse, pos);
+                throw new Error("No matching parse item found");
+            }
+
+            const pre = input.slice(0, matchParseItem.type === "blank" ? matchParseItem.end : matchParseItem.start);
+            const last = input.slice(matchParseItem.end);
+            const cur = input.slice(
+                matchParseItem.type === "blank" ? matchParseItem.end : matchParseItem.start,
+                matchParseItem.end,
+            );
+
+            console.log({ pre, cur, last, matchParseItem, parse });
+
+            if (matchParseItem.type === "main" || !parse.find((i) => i.type === "main")) {
                 const l = this.allCommands();
                 for (const cmd of l) {
                     if (cmd.startsWith(cur)) {
                         res.push({ x: cmd, des: "" });
                     }
                 }
+            } else {
+                // is path
+                if (!matchParseItem.input.endsWith("/") && matchParseItem.type === "arg") {
+                    return { list: [{ x: `${cur}/`, des: "" }], pre, last };
+                }
+                const p = path.isAbsolute(cur) ? cur : path.join(this.cwd, cur);
+                // todo 定位到光标所在位置
+                const [dir] = tryX(() => fs.readdirSync(p));
+                for (const file of dir ?? []) {
+                    const nFile = file.replaceAll(" ", "\\ ").replaceAll("'", "\\'").replaceAll('"', '\\"');
+                    const [stat] = tryX(() => fs.statSync(path.join(p, file)));
+                    const nPath = cur ? path.join(cur, nFile) : nFile;
+                    if (!stat) {
+                        res.push({ show: file, x: nPath, des: "error" });
+                    } else if (stat.isDirectory()) {
+                        res.push({ show: file, x: nPath, des: "dir" });
+                    } else {
+                        res.push({ show: file, x: nPath, des: "file" });
+                    }
+                }
             }
             return { list: res.slice(0, 500), pre, last };
         };
+
+        const getInputStyle = (input: string) => {
+            const parse = parseIn(input);
+            console.log("input", parse);
+            return parse.map((item) => {
+                const color =
+                    item.type === "main"
+                        ? "#0f0"
+                        : item.type === "arg"
+                          ? "#000"
+                          : item.type === "blank"
+                            ? "#fff"
+                            : "#fff";
+                const bg = item.type === "arg" ? "#eee" : "transparent";
+                return txt(item.input).style({
+                    color,
+                    backgroundColor: bg,
+                });
+            });
+        };
+
+        this.inputCommandEl.on("input", () => {
+            this.inputCommandStyleEl.clear().add(getInputStyle(this.inputCommandEl.gv));
+        });
 
         this.inputCommandEl.on("keydown", (e) => {
             if (e.key === "ArrowUp" || e.key === "ArrowDown") {
@@ -279,14 +340,14 @@ class Page {
                     return;
                 }
                 if (list.length === 1) {
-                    this.inputCommandEl.sv(pre + list[0].x + last);
+                    this.inputCommandElP.sv(pre + list[0].x + last);
                     return;
                 }
                 tipController = showInputTip(list);
                 tipController.onSelect((selected) => {
                     if (tipX) {
                         const { pre, last } = tipX;
-                        this.inputCommandEl.sv(pre + selected + last);
+                        this.inputCommandElP.sv(pre + selected + last);
                         tipX = null;
 
                         this.inputCommandEl.el.focus();
@@ -315,16 +376,18 @@ class Page {
 
         const commit = () => {
             const command = this.inputCommandEl.gv;
-            this.inputCommandEl.sv("");
+            this.inputCommandElP.sv("");
             this.inputCommandEl.attr({ disabled: true });
 
             const historyEl = view("y");
-            txt(`$ ${command}`).addInto(historyEl);
+            txt("$ ").add(getInputStyle(command)).addInto(historyEl);
             const outputEl = textarea().attr({ readOnly: true }).addInto(historyEl);
 
             historyEl.addInto(this.historyEl);
 
-            const com = command.trim().split(" ");
+            const com = parseIn(command)
+                .filter((i) => i.type !== "blank")
+                .map((i) => i.value);
             if (com.length === 0) {
                 finish();
                 return;
