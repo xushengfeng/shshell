@@ -10,6 +10,7 @@ import { Terminal } from "@xterm/xterm";
 import "@xterm/xterm/css/xterm.css";
 import { parseIn, type ShInputItem } from "./parser_in";
 import { Render } from "./output_render";
+import { pathMatchCursor } from "./path_match_cursor";
 
 function tryX<T>(x: () => T): [T, null] | [null, Error] {
     try {
@@ -270,12 +271,11 @@ class Page {
                 throw new Error("No matching parse item found");
             }
 
-            const pre = input.slice(0, matchParseItem.type === "blank" ? matchParseItem.end : matchParseItem.start);
-            const last = input.slice(matchParseItem.end);
-            const cur = input.slice(
-                matchParseItem.type === "blank" ? matchParseItem.end : matchParseItem.start,
-                matchParseItem.end,
-            );
+            const curPosStart = matchParseItem.type === "blank" ? matchParseItem.end : matchParseItem.start;
+            const curPosEnd = matchParseItem.end;
+            const pre = input.slice(0, curPosStart);
+            const last = input.slice(curPosEnd);
+            const cur = input.slice(curPosStart, curPosEnd);
 
             console.log({ pre, cur, last, matchParseItem, parse });
 
@@ -288,16 +288,17 @@ class Page {
                 }
             } else {
                 // is path
-                if (!matchParseItem.input.endsWith("/") && matchParseItem.type === "arg") {
-                    return { list: [{ x: `${cur}/`, des: "" }], pre, last };
+                if (!matchParseItem.input.endsWith(path.sep) && matchParseItem.type === "arg") {
+                    const [stat] = tryX(() => fs.statSync(path.isAbsolute(cur) ? cur : path.join(this.cwd, cur)));
+                    if (stat?.isDirectory()) return { list: [{ x: `${cur}${path.sep}`, des: "" }], pre, last };
                 }
-                const p = path.isAbsolute(cur) ? cur : path.join(this.cwd, cur);
-                // todo 定位到光标所在位置
+                const { basePath, focusPart, p } = pathMatchCursor(cur, cursorStart - curPosStart, this.cwd);
                 const [dir] = tryX(() => fs.readdirSync(p));
                 for (const file of dir ?? []) {
+                    if (!file.startsWith(focusPart)) continue; // todo 模糊
                     const nFile = file.replaceAll(" ", "\\ ").replaceAll("'", "\\'").replaceAll('"', '\\"');
                     const [stat] = tryX(() => fs.statSync(path.join(p, file)));
-                    const nPath = cur ? path.join(cur, nFile) : nFile;
+                    const nPath = cur ? path.join(basePath, nFile) : nFile;
                     if (!stat) {
                         res.push({ show: file, x: nPath, des: "error" });
                     } else if (stat.isDirectory()) {
