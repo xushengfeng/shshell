@@ -47,6 +47,7 @@ class Sh {
     ): {
         onData: (cb: (data: string) => void) => void;
         onExit: (cb: () => void) => void;
+        write: (data: string) => void;
     } & (
         | {
               type: "local";
@@ -59,25 +60,35 @@ class Sh {
     ) {
         if (this.conn) {
             // ssh
+            let dataCb = (_data: string) => {};
+            let exitCb = () => {};
+            let writeX = (_data: string) => {};
+            // todo 验证执行
+            this.conn?.exec(
+                `${command} ${args.join(" ")}`,
+                { env: op.env, pty: { cols: op.cols, rows: op.rows } },
+                (err, stream) => {
+                    if (err) throw err;
+                    stream.on("data", (data) => {
+                        dataCb(data.toString());
+                    });
+                    stream.on("close", () => {
+                        exitCb();
+                    });
+                    writeX = (data: string) => {
+                        stream.write(data);
+                    };
+                },
+            );
             return {
                 onData: (cb: (data: string) => void) => {
-                    // todo 验证执行
-                    this.conn?.exec(
-                        `cd ${op.cwd} && ${command} ${args.join(" ")}`,
-                        { env: op.env, pty: { cols: op.cols, rows: op.rows } },
-                        (err, stream) => {
-                            if (err) throw err;
-                            stream.on("data", (data) => {
-                                cb(data.toString());
-                            });
-                            stream.on("close", () => {
-                                exitCb();
-                            });
-                        },
-                    );
+                    dataCb = cb;
                 },
                 onExit: (cb: () => void) => {
                     exitCb = cb;
+                },
+                write: (data: string) => {
+                    writeX(data);
                 },
                 type: "ssh",
                 _ssh: this.conn,
@@ -88,7 +99,6 @@ class Sh {
             name: "xterm-color",
             ...op,
         });
-        let exitCb = () => {};
         return {
             onData: (cb: (data: string) => void) => {
                 ptyProcess.onData((data) => {
@@ -103,6 +113,9 @@ class Sh {
                 ptyProcess.onExit(() => {
                     cb();
                 });
+            },
+            write: (data: string) => {
+                ptyProcess.write(data);
             },
             type: "local",
             _local: ptyProcess,
@@ -391,6 +404,7 @@ class Page {
                 .style({ position: "sticky", top: 0, zIndex: 1, backgroundColor: "#fff" })
                 .addInto(bar);
             bar.add(spacer());
+            let _term: Terminal | undefined;
             button("xterm")
                 .addInto(bar)
                 .on("click", () => {
@@ -399,11 +413,38 @@ class Page {
                         theme: {
                             background: "#fff",
                             foreground: "#000",
+                            selectionBackground: "#00a",
                         },
                         rows: 1,
                     });
+                    _term = term;
                     term.onRender(() => {
                         term.resize(term.cols, Math.min(30, term.buffer.normal.length));
+                    });
+                    let selection = "";
+                    term.onKey(({ domEvent }) => {
+                        if (domEvent.key === "c" && domEvent.ctrlKey) {
+                            const select = term.getSelection();
+                            selection = select;
+                        }
+                    });
+                    term.onData((data) => {
+                        if (data === "\x03") {
+                            const select = selection;
+                            if (select.length > 0) {
+                                navigator.clipboard.writeText(select);
+                            } else {
+                                shProcess.write(data);
+                            }
+                            return;
+                        }
+                        if (data === "\x16") {
+                            navigator.clipboard.readText().then((text) => {
+                                shProcess.write(text);
+                            });
+                            return;
+                        }
+                        shProcess.write(data);
                     });
                     const termEl = view().addInto(outputEl);
                     term.open(termEl.el);
@@ -469,6 +510,7 @@ class Page {
             shProcess.onData((data) => {
                 rawT += data;
                 term.write(data);
+                if (_term) _term.write(data);
             });
             shProcess.onExit(() => {
                 finish2();
