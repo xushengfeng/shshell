@@ -3,6 +3,7 @@ import type { IPty } from "node-pty";
 const path = require("node:path") as typeof import("node:path");
 const fs = require("node:fs") as typeof import("node:fs");
 const process = require("node:process") as typeof import("node:process");
+const { sync: isexeSync } = require("isexe") as typeof import("isexe");
 const pty = require("node-pty") as typeof import("node-pty");
 const { Client } = require("ssh2") as typeof import("ssh2");
 import { Terminal } from "@xterm/xterm";
@@ -479,9 +480,15 @@ class Page {
             };
 
             if (com[0] === "cd") {
+                // todo 更标准的处理
                 if (com.length > 1) {
                     const newPath = path.resolve(this.cwd, com[1]);
-                    // todo check if path exists
+                    const [s] = tryX(() => fs.statSync(newPath));
+                    if (!s || !s.isDirectory()) {
+                        term.write(`cd: no such directory: ${com[1]}\n`);
+                        finish2();
+                        return;
+                    }
                     this.cwd = newPath;
                 } else {
                     this.cwd = process.env.HOME || "";
@@ -491,9 +498,16 @@ class Page {
             }
 
             if (!this.allCommands().has(com[0])) {
-                term.write(`Command not found: ${com[0]}\n`);
-                finish2();
-                return;
+                let canRun = false;
+                if (path.isAbsolute(com[0]) || com[0].startsWith("./") || com[0].startsWith("../")) {
+                    const s = isexeSync(path.join(this.cwd, com[0]), { ignoreErrors: true });
+                    if (s) canRun = true;
+                }
+                if (!canRun) {
+                    term.write(`Command not found: ${com[0]}\n`);
+                    finish2();
+                    return;
+                }
             }
 
             console.log("run", com, this.cwd, this.env);
