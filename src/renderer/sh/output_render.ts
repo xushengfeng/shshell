@@ -48,7 +48,7 @@ export class Render {
         this.el.add(this.mainEl);
     }
     write(data: string) {
-        const gLineEl = () => view().style({ minHeight: "1lh" });
+        const gLineEl = () => view().style({ minHeight: "1lh", lineBreak: "anywhere" });
         const renderText = (item: ShOutputItem) => {
             if (item.type === "text") {
                 const textEl = txt(item.text).style({ whiteSpace: "pre-wrap" });
