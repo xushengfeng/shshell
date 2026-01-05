@@ -455,6 +455,7 @@ class Page {
 
             const outputEl = view().addInto(historyEl);
             const term = new Render();
+            term.el.style({ maxHeight: "80vh", overflowY: "scroll" });
             outputEl.add(term.el);
 
             historyEl.addInto(this.historyEl);
