@@ -168,7 +168,7 @@ export class Render {
         };
         const l = parseOut(this.dataRest.rest + data);
         this.dataRest.rest = l.rest;
-        console.log(l);
+        console.log(this.dataRest.rest + data, l);
 
         for (const item of l.items) {
             if (item.type === "edit" && item.xType === "newLine") {
