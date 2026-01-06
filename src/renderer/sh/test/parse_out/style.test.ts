@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { parseOut, type ShOutputItemText } from "../../parser_out"; // 需要导出 processTokens
+import attr_example from "./show/terminalguide_attr_example.txt?raw";
 
 // 辅助：只取第一行的第一个文本块（简化测试）
 const getFirstChunk = (output: string) => {
@@ -9,31 +10,42 @@ const getFirstChunk = (output: string) => {
 
 describe("Styles (Color & Interaction)", () => {
     describe("ANSI Color Parsing", () => {
-        it("should parse basic foreground color (31m)", () => {
+        it("should parse basic foreground color (8 color with bright) (31m)", () => {
             const chunk = getFirstChunk("\x1b[31mRed\x1b[0m");
             expect(chunk).toMatchObject({ text: "Red", style: { color: "_red" } });
+            const chunk2 = getFirstChunk("\x1b[91mBrightRed\x1b[0m");
+            expect(chunk2).toMatchObject({ text: "BrightRed", style: { color: "_brightRed" } });
         });
 
-        it("should parse basic background color (41m)", () => {
+        it("should parse basic background color (8 color with bright) (41m)", () => {
             const chunk = getFirstChunk("\x1b[41mBg\x1b[0m");
             expect(chunk).toMatchObject({ text: "Bg", style: { bgColor: "_red" } });
+            const chunk2 = getFirstChunk("\x1b[101mBrightBg\x1b[0m");
+            expect(chunk2).toMatchObject({ text: "BrightBg", style: { bgColor: "_brightRed" } });
         });
 
-        it("should parse bright colors (91m)", () => {
-            const chunk = getFirstChunk("\x1b[91mBrightRed\x1b[0m");
-            expect(chunk).toMatchObject({ text: "BrightRed", style: { color: "_brightRed" } });
-        });
-
-        it("should parse 256 color index", () => {
+        it("should parse 256 foreground color index", () => {
             // 38;5;208 = Orange
             const chunk = getFirstChunk("\x1b[38;5;208mOrange\x1b[0m");
             // 计算 208 应该得到 #ff6600
             expect(chunk).toMatchObject({ text: "Orange", style: { color: "#ff6600" } });
+            const chunk2 = getFirstChunk("\x1b[38;5;1mRed\x1b[0m");
+            expect(chunk2).toMatchObject({ text: "Red", style: { color: "_red" } });
         });
 
-        it("should parse RGB True Color", () => {
+        it("should parse 256 background color index", () => {
+            const chunk = getFirstChunk("\x1b[48;5;208mOrange\x1b[0m");
+            expect(chunk).toMatchObject({ text: "Orange", style: { bgColor: "#ff6600" } });
+        });
+
+        it("should parse RGB True Color foreground", () => {
             const chunk = getFirstChunk("\x1b[38;2;255;128;0mGold\x1b[0m");
             expect(chunk).toMatchObject({ text: "Gold", style: { color: "#ff8000" } });
+        });
+
+        it("should parse RGB True Color background", () => {
+            const chunk = getFirstChunk("\x1b[48;2;255;128;0mGoldBg\x1b[0m");
+            expect(chunk).toMatchObject({ text: "GoldBg", style: { bgColor: "#ff8000" } });
         });
     });
 
@@ -92,5 +104,48 @@ describe("Styles (Color & Interaction)", () => {
             // 如果 applySgr 自动交换了颜色，则需要检查 color/bgColor。
             // 让我们假设代码中是设置了 flag。
         });
+    });
+});
+
+describe("Styles By txt File", () => {
+    const result = parseOut(attr_example);
+    it("check color", () => {
+        function check(x: string | undefined) {
+            if (x === undefined) return true;
+            if (x.startsWith("#")) {
+                // 检查是否为有效的十六进制颜色
+                return /^#([0-9A-Fa-f]{6}|[0-9A-Fa-f]{3})$/.test(x);
+            }
+            // 检查是否为已知的语义颜色
+            const semanticColors = [
+                "_black",
+                "_red",
+                "_green",
+                "_yellow",
+                "_blue",
+                "_magenta",
+                "_cyan",
+                "_white",
+                "_gray",
+                "_brightRed",
+                "_brightGreen",
+                "_brightYellow",
+                "_brightBlue",
+                "_brightMagenta",
+                "_brightCyan",
+                "_brightWhite",
+                "_default",
+            ];
+            return semanticColors.includes(x);
+        }
+        expect(
+            (result.filter((i) => i.type === "text") as ShOutputItemText[]).every((i) => {
+                const x = check(i.style.color) && check(i.style.bgColor);
+                if (!x) {
+                    console.log("Failed color check:", i.style);
+                }
+                return x;
+            }),
+        ).toBe(true);
     });
 });

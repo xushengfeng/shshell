@@ -51,9 +51,17 @@ type TermSequence = {
 };
 
 function get256Color(code: number): string {
+    if (code < 16) {
+        if (code <= 7) {
+            return getSemanticColor(code + 30);
+        }
+        return getSemanticColor(code + 82);
+    }
+
     if (code >= 232) {
-        const val = (code - 232) * 10 + 8;
-        return `#${val.toString(16).padStart(2, "0")}${val.toString(16).padStart(2, "0")}${val.toString(16).padStart(2, "0")}`;
+        const val = Math.round(((code - 232) * 10 + 8) * (255 / 238));
+        const hex = val.toString(16).padStart(2, "0");
+        return `#${hex}${hex}${hex}`;
     }
     const v = code - 16;
     const r = Math.floor(v / 36);
