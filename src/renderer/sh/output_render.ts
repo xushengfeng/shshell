@@ -46,6 +46,9 @@ export class Render {
             _default: "#000000",
         },
     };
+    private dataRest = {
+        rest: "",
+    };
     constructor() {
         this.el.add(this.mainEl);
     }
@@ -104,7 +107,8 @@ export class Render {
             // 其他类型暂不处理
             return view();
         };
-        const l = parseOut(data);
+        const l = parseOut(this.dataRest.rest + data);
+        this.dataRest.rest = l.rest;
         console.log(l);
 
         if (this.mainEl.el.children.length === 0) {
@@ -112,7 +116,7 @@ export class Render {
         }
         // biome-ignore lint/style/noNonNullAssertion: added
         const lineEl = pack(Array.from(this.mainEl.el.children).at(-1)! as HTMLElement);
-        const splitLines = l.reduce(
+        const splitLines = l.items.reduce(
             (acc: ShOutputItem[][], curr) => {
                 if (curr.type === "text" && curr.text === "\n") {
                     acc.push([]);

@@ -74,75 +74,157 @@ function get256Color(code: number): string {
     return `#${toHex(r)}${toHex(g)}${toHex(b)}`;
 }
 
+const csiEnd = [
+    "A",
+    " A",
+    "B",
+    "C",
+    "D",
+    "E",
+    "F",
+    "G",
+    "H",
+    "I",
+    "J",
+    "K",
+    "L",
+    "M",
+    "P",
+    "S",
+    "T",
+    "W",
+    "?W",
+    "X",
+    "Z",
+    "a",
+    "b",
+    "c",
+    "d",
+    " d",
+    "e",
+    "f",
+    "g",
+    "h",
+    "i",
+    "j",
+    "k",
+    "l",
+    "m",
+    "n",
+    "!p",
+    "$p",
+    "#p",
+    "+p",
+    '"p',
+    "q",
+    "#q",
+    '"q',
+    " q",
+    "r",
+    "s",
+    "t",
+    "u",
+    "v",
+    "w",
+    "x",
+    "y",
+    "z",
+    "@",
+    " @",
+    "]",
+    "^",
+    "`",
+];
+
 /**
  * 第一步：将原始字符串拆分为 TermSequence[]
  * 识别出转义序列和其他字符（包括特殊控制字符）
  */
-export function tokenize(output: string): TermSequence[] {
+export function tokenize(output: string) {
     const tokens: TermSequence[] = [];
+    let restMaySeq = "";
     let pos = 0;
 
     while (pos < output.length) {
         const char = output[pos];
 
-        // 1. 检测转义序列开始 (CSI: ESC[ 或 0x9B)
-        if (char === "\x1b" || char === "\x9b") {
-            pos++; // 跳过 ESC
-            let content = char;
+        const nowStart = pos; // 用于不完整序列返回
 
-            // 检查是否是 [ 开头 (CSI)
-            if (pos < output.length && output[pos] === "[") {
-                content += output[pos];
-                pos++;
-                // 读取直到遇到 SGR 终止符 'm' 或其他标准终止符 (A-Z, a-z)
-                // 注意：有些复杂序列可能包含中间字节，这里简化处理
-                while (pos < output.length) {
-                    const c = output[pos];
-                    content += c;
-                    pos++;
-                    // 终止条件：字母(m, H, J等) 或 响铃
-                    if ((c >= "A" && c <= "Z") || (c >= "a" && c <= "z") || c === "\x07") {
-                        break;
-                    }
-                }
-                tokens.push({ type: "seq", content });
+        let t: "normal" | "esc" | "csi" | "dcs" | "osc" = "normal";
+
+        if (char === "\x1b") {
+            if (output[pos + 1] === "[") {
+                t = "csi";
+                pos += 2;
+            } else if (output[pos + 1] === "]") {
+                t = "osc";
+                pos += 2;
+            } else if (output[pos + 1] === "P") {
+                t = "dcs";
+                pos += 2;
             } else {
-                // 如果 ESC 后面不是 [，可能是其他简单序列（如 ESC \）
-                // 或者此时就结束。这里我们暂时将其作为一个整体 seq 处理，
-                // 或者如果无法解析，可以视为文本（通常会被忽略）。
-                // 为兼容性，我们直接按 seq 吞掉。
-                // 如果这是一个单独的 ESC 字符，它通常会被终端忽略，这里我们忽略它。
-                // 如果后面还有内容，可能需要回退 pos，但为了简单，我们只吞掉 ESC。
-                // 如果我们需要处理如 `ESC \` (String Terminator)，上面的逻辑需要调整。
-                tokens.push({ type: "seq", content: char });
+                t = "esc";
+                pos++;
             }
-        }
-        // 2. 处理特殊控制字符（换行、回车、退格等）
-        // 我们将它们放入 text 类型的 token 中，因为它们直接影响显示内容
-        else if (char === "\n" || char === "\r" || char === "\b" || char === "\t") {
-            // 为了保持每一步的原子性，这里每次只处理一个字符
-            // 后续解析器会处理这些特殊的 text token
-            tokens.push({ type: "text", content: char });
+        } else if (char === "\x9b") {
+            t = "csi";
+            pos++;
+        } else if (char === "\x9d") {
+            t = "osc";
+            pos++;
+        } else if (char === "\x90") {
+            t = "dcs";
             pos++;
         }
-        // 3. 普通文本
-        else {
-            let text = "";
-            // 连续读取普通字符，直到遇到控制字符或转义序列
-            while (pos < output.length) {
+
+        if (t === "csi") {
+            let content = "\x1b[";
+            const nl = csiEnd.sort((a, b) => b.length - a.length);
+            let matchEnd = false;
+            o: while (pos < output.length) {
                 const c = output[pos];
-                if (c === "\x1b" || c === "\x9b" || c === "\n" || c === "\r" || c === "\b" || c === "\t") {
-                    break;
+                if (c === "\n" || c === "\r" || c === "\t") break;
+                content += c;
+                pos++;
+                for (const end of nl) {
+                    if (content.endsWith(end)) {
+                        matchEnd = true;
+                        break o;
+                    }
                 }
-                text += c;
+            }
+            if (matchEnd) {
+                tokens.push({ type: "seq", content });
+            } else {
+                restMaySeq = output.slice(nowStart);
+            }
+        } else if (t === "osc") {
+        } else if (t === "dcs") {
+        } else if (t === "esc") {
+        } else {
+            if (char === "\n" || char === "\r" || char === "\b" || char === "\t") {
+                tokens.push({ type: "text", content: char });
                 pos++;
             }
-            if (text.length > 0) {
-                tokens.push({ type: "text", content: text });
+            // 普通文本
+            else {
+                let text = "";
+                // 连续读取普通字符，直到遇到控制字符或转义序列
+                while (pos < output.length) {
+                    const c = output[pos];
+                    if (c === "\x1b" || c === "\x9b" || c === "\n" || c === "\r" || c === "\b" || c === "\t") {
+                        break;
+                    }
+                    text += c;
+                    pos++;
+                }
+                if (text.length > 0) {
+                    tokens.push({ type: "text", content: text });
+                }
             }
         }
     }
-    return tokens;
+    return { tokens, rest: restMaySeq };
 }
 
 // 辅助：将 ANSI 代码字符串转为 SemanticColor
@@ -368,6 +450,6 @@ export function parseOut(output: string) {
     const tokens = tokenize(output);
 
     // 第二层：解析序列并生成样式
-    const items = processTokens(tokens);
-    return items;
+    const items = processTokens(tokens.tokens);
+    return { items, rest: tokens.rest };
 }
