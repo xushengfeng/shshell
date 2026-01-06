@@ -46,7 +46,14 @@ export type ShOutputItemEdit = {
     xType: "newLine";
 };
 
-export type ShOutputItem = ShOutputItemText | ShOutputItemCursor | ShOutputItemEdit;
+export type ShOutputItem =
+    | ShOutputItemText
+    | ShOutputItemCursor
+    | ShOutputItemEdit
+    | {
+          type: "other";
+          content: string;
+      };
 
 // TermSequence 用于表示扫描后的基础字符块
 // type: "seq" 代表这是一个转义序列，后续需要解析
@@ -372,13 +379,205 @@ function parseCSIContent(content: string): number[] {
     return [];
 }
 
-/**
- * 第二步：处理 TermSequence[]，生成 ShOutputItem[]
- * 这一步负责处理行内逻辑（回车覆盖、退格删除）
- */
+function processToken(
+    token: TermSequence,
+    currentStyle: ShOutputItemText["style"],
+): { items: ShOutputItem[]; style?: ShOutputItemText["style"] } {
+    if (token.type === "seq") {
+        // 解析序列内容，提取参数
+        // 格式通常是 \x1b[...m
+        // 我们需要提取 [...] 中的数字
+        let t: "esc" | "csi" | "dcs" | "osc" | "c01" = "c01";
+        let x = token.content;
+        if (token.content.startsWith("\x1b[")) {
+            t = "csi";
+            x = token.content.slice(2);
+        } else if (token.content.startsWith("\x1bP")) {
+            t = "dcs";
+            x = token.content.slice(2);
+        } else if (token.content.startsWith("\x1b]")) {
+            t = "osc";
+            x = token.content.slice(2);
+        } else if (token.content.startsWith("\x1b")) {
+            t = "esc";
+            x = token.content.slice(1);
+        }
+        let last = "";
+        if (t === "csi") {
+            const l = csiEnd.find((end) => x.endsWith(end));
+            if (!l) return { items: [{ type: "other", content: token.content }], style: currentStyle };
+            last = l;
+            x = x.slice(0, x.length - l.length);
+            const params = parseCSIContent(x);
+            // 处理 SGR (m) 指令
+            if (last === "m") {
+                applySgr(currentStyle, params);
+                return { items: [], style: currentStyle };
+            }
+            if (last === "A") {
+                return {
+                    items: [
+                        {
+                            type: "cursor",
+                            row: { type: "rel", v: -(params[0] || 1) },
+                        },
+                    ],
+                };
+            }
+            if (last === "B") {
+                return {
+                    items: [
+                        {
+                            type: "cursor",
+                            row: { type: "rel", v: params[0] || 1 },
+                        },
+                    ],
+                };
+            }
+            if (last === "C") {
+                return {
+                    items: [
+                        {
+                            type: "cursor",
+                            col: { type: "rel", v: params[0] || 1 },
+                        },
+                    ],
+                };
+            }
+            if (last === "D") {
+                return {
+                    items: [
+                        {
+                            type: "cursor",
+                            col: { type: "rel", v: -(params[0] || 1) },
+                        },
+                    ],
+                };
+            }
+            if (last === "E") {
+                return {
+                    items: [
+                        {
+                            type: "cursor",
+                            row: { type: "rel", v: params[0] || 1 },
+                            col: { type: "abs", v: 0 },
+                        },
+                    ],
+                };
+            }
+            if (last === "F") {
+                return {
+                    items: [
+                        {
+                            type: "cursor",
+                            row: { type: "rel", v: -(params[0] || 1) },
+                            col: { type: "abs", v: 0 },
+                        },
+                    ],
+                };
+            }
+            if (last === "G" || last === "`") {
+                return {
+                    items: [
+                        {
+                            type: "cursor",
+                            col: { type: "abs", v: (params[0] || 1) - 1 },
+                        },
+                    ],
+                };
+            }
+            if (last === "H") {
+                return {
+                    items: [
+                        {
+                            type: "cursor",
+                            row: { type: "abs", v: (params[0] || 1) - 1 },
+                            col: { type: "abs", v: (params[1] || 1) - 1 },
+                        },
+                    ],
+                };
+            }
+            if (last === "I") {
+                return {
+                    items: [
+                        {
+                            type: "text",
+                            text: "    ".repeat(params[0] || 1),
+                            style: { ...currentStyle },
+                        },
+                    ],
+                };
+            }
+            if (last === "J") {
+                // todo
+                const p = params[0] || 0;
+                if (p === 0) {
+                }
+                if (p === 1) {
+                }
+                if (p === 2) {
+                }
+                if (p === 3) {
+                }
+                return { items: [{ type: "other", content: token.content }] };
+            }
+        }
+        if (t === "c01") {
+            if (token.content === "\n") {
+                return {
+                    items: [
+                        { type: "edit", xType: "newLine" },
+                        {
+                            type: "cursor",
+                            row: { type: "rel", v: 1 },
+                            col: { type: "abs", v: 0 },
+                        },
+                    ],
+                };
+            }
+            if (token.content === "\r") {
+                return {
+                    items: [
+                        {
+                            type: "cursor",
+                            col: { type: "abs", v: 0 },
+                        },
+                    ],
+                };
+            }
+            if (token.content === "\b") {
+                return {
+                    items: [
+                        {
+                            type: "cursor",
+                            col: { type: "rel", v: -1 },
+                        },
+                    ],
+                };
+            }
+        }
+    } else if (token.type === "text") {
+        const content = token.content;
+
+        if (content === "\t") {
+            return {
+                items: [
+                    {
+                        type: "text",
+                        text: "    ",
+                        style: { ...currentStyle },
+                    },
+                ],
+            };
+        }
+        return { items: [{ type: "text", text: content, style: { ...currentStyle } }] };
+    }
+    return { items: [{ type: "other", content: token.content }] };
+}
+
 function processTokens(tokens: TermSequence[]): ShOutputItem[] {
     const items: ShOutputItem[] = [];
-    const currentStyle: ShOutputItemText["style"] = {
+    let currentStyle: ShOutputItemText["style"] = {
         bold: false,
         italic: false,
         underline: false,
@@ -391,155 +590,12 @@ function processTokens(tokens: TermSequence[]): ShOutputItem[] {
 
     // 逐个 Token 处理
     for (const token of tokens) {
-        if (token.type === "seq") {
-            // 解析序列内容，提取参数
-            // 格式通常是 \x1b[...m
-            // 我们需要提取 [...] 中的数字
-            let t: "esc" | "csi" | "dcs" | "osc" | "c01" = "c01";
-            let x = token.content;
-            if (token.content.startsWith("\x1b[")) {
-                t = "csi";
-                x = token.content.slice(2);
-            } else if (token.content.startsWith("\x1bP")) {
-                t = "dcs";
-                x = token.content.slice(2);
-            } else if (token.content.startsWith("\x1b]")) {
-                t = "osc";
-                x = token.content.slice(2);
-            } else if (token.content.startsWith("\x1b")) {
-                t = "esc";
-                x = token.content.slice(1);
-            }
-            let last = "";
-            if (t === "csi") {
-                const l = csiEnd.find((end) => x.endsWith(end));
-                if (!l) continue;
-                last = l;
-                x = x.slice(0, x.length - l.length);
-                const params = parseCSIContent(x);
-                // 处理 SGR (m) 指令
-                if (last === "m") {
-                    applySgr(currentStyle, params);
-                }
-                if (last === "A") {
-                    items.push({
-                        type: "cursor",
-                        row: { type: "rel", v: -(params[0] || 1) },
-                    });
-                }
-                if (last === "B") {
-                    items.push({
-                        type: "cursor",
-                        row: { type: "rel", v: params[0] || 1 },
-                    });
-                }
-                if (last === "C") {
-                    items.push({
-                        type: "cursor",
-                        col: { type: "rel", v: params[0] || 1 },
-                    });
-                }
-                if (last === "D") {
-                    items.push({
-                        type: "cursor",
-                        col: { type: "rel", v: -(params[0] || 1) },
-                    });
-                }
-                if (last === "E") {
-                    items.push({
-                        type: "cursor",
-                        row: { type: "rel", v: params[0] || 1 },
-                        col: { type: "abs", v: 0 },
-                    });
-                }
-                if (last === "F") {
-                    items.push({
-                        type: "cursor",
-                        row: { type: "rel", v: -(params[0] || 1) },
-                        col: { type: "abs", v: 0 },
-                    });
-                }
-                if (last === "G" || last === "`") {
-                    items.push({
-                        type: "cursor",
-                        col: { type: "abs", v: (params[0] || 1) - 1 },
-                    });
-                }
-                if (last === "H") {
-                    items.push({
-                        type: "cursor",
-                        row: { type: "abs", v: (params[0] || 1) - 1 },
-                        col: { type: "abs", v: (params[1] || 1) - 1 },
-                    });
-                }
-                if (last === "I") {
-                    items.push({
-                        type: "text",
-                        text: "    ".repeat(params[0] || 1),
-                        style: { ...currentStyle },
-                    });
-                }
-                if (last === "J") {
-                    // todo
-                    const p = params[0] || 0;
-                    if (p === 0) {
-                    }
-                    if (p === 1) {
-                    }
-                    if (p === 2) {
-                    }
-                    if (p === 3) {
-                    }
-                }
-            }
-            if (t === "c01") {
-                if (token.content === "\n") {
-                    items.push({ type: "edit", xType: "newLine" });
-                    items.push({
-                        type: "cursor",
-                        row: { type: "rel", v: 1 },
-                        col: { type: "abs", v: 0 },
-                    });
-                } else if (token.content === "\r") {
-                    items.push({
-                        type: "cursor",
-                        col: { type: "abs", v: 0 },
-                    });
-                } else if (token.content === "\b") {
-                    items.push({
-                        type: "cursor",
-                        col: { type: "rel", v: -1 },
-                    });
-                }
-            }
-        } else if (token.type === "text") {
-            const content = token.content;
-
-            if (content === "\t") {
-                if (!currentStyle.inverse && !currentStyle.hidden) {
-                    items.push({
-                        type: "text",
-                        text: "    ",
-                        style: { ...currentStyle },
-                    });
-                }
-            } else {
-                // 普通文本：直接推入
-                // 注意：如果上一个 item 的样式和当前一样，应该合并
-                if (content.length > 0) {
-                    if (items.length > 0 && items[items.length - 1].type === "text") {
-                        const prev = items[items.length - 1] as ShOutputItemText;
-                        if (JSON.stringify(prev.style) === JSON.stringify(currentStyle)) {
-                            prev.text += content;
-                        } else {
-                            items.push({ type: "text", text: content, style: { ...currentStyle } });
-                        }
-                    } else {
-                        items.push({ type: "text", text: content, style: { ...currentStyle } });
-                    }
-                }
-            }
+        const result = processToken(token, structuredClone(currentStyle));
+        if (result.items.length === 0) {
+            items.push({ type: "other", content: token.content });
         }
+        items.push(...result.items);
+        if (result.style) currentStyle = result.style;
     }
     return items;
 }
