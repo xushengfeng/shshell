@@ -198,6 +198,8 @@ function applySgr(style: ShOutputItemText["style"], params: number[]) {
             style.bold = false;
             style.italic = false;
             style.underline = false;
+            style.dbunderline = false;
+            style.overline = false;
             style.dim = false;
             style.blink = false;
             style.inverse = false;
