@@ -38,13 +38,19 @@ export type ShOutputItemText = {
 };
 export type ShOutputItemCursor = {
     type: "cursor";
+    row?: { type: "abs" | "rel"; v: number };
+    col?: { type: "abs" | "rel"; v: number };
+};
+export type ShOutputItemEdit = {
+    type: "edit";
+    xType: "newLine";
 };
 
-export type ShOutputItem = ShOutputItemText | ShOutputItemCursor;
+export type ShOutputItem = ShOutputItemText | ShOutputItemCursor | ShOutputItemEdit;
 
 // TermSequence 用于表示扫描后的基础字符块
 // type: "seq" 代表这是一个转义序列，后续需要解析
-// type: "text" 代表普通字符、回车、退格等，可以直接处理
+// type: "text" 代表普通字符，可以直接处理
 type TermSequence = {
     type: "text" | "seq";
     content: string;
@@ -202,7 +208,10 @@ export function tokenize(output: string) {
         } else if (t === "dcs") {
         } else if (t === "esc") {
         } else {
-            if (char === "\n" || char === "\r" || char === "\b" || char === "\t") {
+            if (char === "\n" || char === "\r" || char === "\b") {
+                tokens.push({ type: "seq", content: char });
+                pos++;
+            } else if (char === "\t") {
                 tokens.push({ type: "text", content: char });
                 pos++;
             }
@@ -383,41 +392,33 @@ function processTokens(tokens: TermSequence[]): ShOutputItem[] {
                 if (params.length === 0 && paramsStr === "") params.push(0);
                 applySgr(currentStyle, params);
             } else {
-                // 忽略非 SGR 序列（如光标移动）
+                if (token.content === "\n") {
+                    items.push({ type: "edit", xType: "newLine" });
+                    items.push({
+                        type: "cursor",
+                        row: { type: "rel", v: 1 },
+                        col: { type: "abs", v: 0 },
+                    });
+                } else if (token.content === "\r") {
+                    items.push({
+                        type: "cursor",
+                        col: { type: "abs", v: 0 },
+                    });
+                } else if (token.content === "\b") {
+                    items.push({
+                        type: "cursor",
+                        col: { type: "rel", v: -1 },
+                    });
+                }
             }
         } else if (token.type === "text") {
             const content = token.content;
 
-            // 处理特殊控制字符需要单独逻辑，因为它们不生成样式，而是修改缓冲区
-            if (content === "\n") {
-                items.push({
-                    type: "text",
-                    text: "\n",
-                    style: {},
-                });
-            } else if (content === "\r") {
-                items.push({
-                    type: "text",
-                    text: "\r",
-                    style: {},
-                });
-            } else if (content === "\b") {
-                // 退格：删除一个字符
-                if (items.length > 0) {
-                    const lastItem = items[items.length - 1];
-                    if (lastItem.type === "text") {
-                        if (lastItem.text.length > 1) {
-                            lastItem.text = lastItem.text.slice(0, -1);
-                        } else {
-                            items.pop(); // 删除这个 item
-                        }
-                    }
-                }
-            } else if (content === "\t") {
+            if (content === "\t") {
                 if (!currentStyle.inverse && !currentStyle.hidden) {
                     items.push({
                         type: "text",
-                        text: "\t",
+                        text: "    ",
                         style: { ...currentStyle },
                     });
                 }

@@ -1,11 +1,35 @@
-import { txt, view, pack, type ElType } from "dkh-ui";
+import { txt, view, pack } from "dkh-ui";
 import { wcswidth } from "simple-wcswidth";
-import { parseOut, type ShOutputItem } from "./parser_out";
+import { parseOut, type ShOutputItemText } from "./parser_out";
+
+type ClassicalCR = {
+    col: number; // limit warp
+    row: number;
+};
+
+type ZuoBiao = {
+    x: number; // infinite horizontal
+    y: number;
+};
 
 export class Render {
     el = view();
     private mainEl = view();
     private seg = new Intl.Segmenter("en", { granularity: "grapheme" });
+    private size = {
+        rows: 24,
+        cols: 80,
+    };
+    private cursor: ClassicalCR = {
+        row: 0,
+        col: 0,
+    };
+    private zuobiao: ZuoBiao = { x: 0, y: 0 };
+    // 用于存储渲染后的单元格信息，2单位宽字符占两个单元格，第一个和其它的一样，第二个为is2Width
+    // 提供渲染元素 原始坐标 等信息 不处理自动换行，应该由cursor自动计算
+    // 使用 ZuoBiao 表示内部坐标
+    private renderedLines: { chars: ({ el: HTMLElement; char: string } | { is2Width: boolean })[]; el: HTMLElement }[] =
+        [];
     private colorMap = {
         background: {
             _black: "#000000",
@@ -51,28 +75,65 @@ export class Render {
     };
     constructor() {
         this.el.add(this.mainEl);
+        this.setSize(this.size.rows, this.size.cols);
+        this.rNewLine();
     }
+    private rSet(el: HTMLElement, char: string, zb: ZuoBiao) {
+        const y = Math.min(zb.y, this.renderedLines.length - 1);
+        const x = zb.x;
+        const width = wcswidth(char);
+        const { chars: line, el: lel } = this.renderedLines[y];
+        function set(el: HTMLElement, _char: string, i: number) {
+            const w = _char === char ? width : wcswidth(_char);
+            pack(el).style({ whiteSpace: "pre-wrap", display: "inline-block", width: w === 2 ? "2ch" : "1ch" });
+            const has = line[i];
+            if (has && "el" in has) {
+                has.el.replaceWith(el);
+                line[i] = { el, char: _char };
+            } else {
+                lel.appendChild(el); // todo 性能
+                line[i] = { el, char: _char };
+            }
+        }
+        // 扩展行
+        const lineEndStart = line.length;
+        for (let i = lineEndStart; i < x; i++) {
+            set(txt(" ").el, " ", i);
+        }
+        if (line[x] && "is2Width" in line[x]) {
+            set(txt(" ").el, " ", x - 1);
+        }
+        // 设置当前单元格
+        set(el, char, x);
+        // 如果是宽字符，设置下一个单元格为占位
+        if (width === 2) {
+            line[x + 1] = { is2Width: true };
+        }
+        return { width };
+    }
+    private rNewLine() {
+        const line = view().style({ minHeight: "1lh", lineBreak: "anywhere" });
+        this.mainEl.add(line);
+        this.renderedLines.push({ chars: [], el: line.el });
+    }
+    private classicalToZuoBiao(cr: ClassicalCR): ZuoBiao {
+        return { x: cr.col, y: cr.row }; // todo
+    }
+    private zuoBiaoToClassical(zb: ZuoBiao): ClassicalCR {
+        return { col: zb.x, row: zb.y }; // todo 换行
+    }
+    private setCursor(cr: ClassicalCR) {
+        const col = Math.max(0, Math.min(cr.col, this.size.cols - 1));
+        const row = Math.max(0, Math.min(cr.row, this.size.rows - 1));
+        this.cursor = { col, row };
+        this.zuobiao = this.classicalToZuoBiao(this.cursor);
+    }
+
     write(data: string) {
-        const gLineEl = () => view().style({ minHeight: "1lh", lineBreak: "anywhere" });
-        const renderText = (item: ShOutputItem) => {
-            if (item.type === "text") {
-                const l: (string | ElType<HTMLElement>)[] = [];
-                for (const i of Array.from(this.seg.segment(item.text))) {
-                    const w = wcswidth(i.segment);
-                    if (w === 2) {
-                        l.push(txt(i.segment).style({ display: "inline-block", width: "2ch" }));
-                    } else {
-                        const last = l.at(-1);
-                        if (last) {
-                            if (typeof last === "string") {
-                                l[l.length - 1] = last + i.segment;
-                            } else {
-                                l.push(i.segment);
-                            }
-                        } else l.push(i.segment);
-                    }
-                }
-                const textEl = txt().add(l).style({ whiteSpace: "pre-wrap", display: "inline-block" });
+        const renderText = (item: ShOutputItemText) => {
+            return Array.from(this.seg.segment(item.text)).map((i) => {
+                const t = i.segment;
+                const textEl = txt(t);
                 // 应用样式
                 if (item.style) {
                     const s = item.style;
@@ -102,35 +163,50 @@ export class Render {
                     if (s.hidden) textEl.style({ visibility: "hidden" });
                     if (s.dim) textEl.style({ opacity: "0.6" });
                 }
-                return textEl;
-            }
-            // 其他类型暂不处理
-            return view();
+                return { el: textEl, char: t };
+            });
         };
         const l = parseOut(this.dataRest.rest + data);
         this.dataRest.rest = l.rest;
         console.log(l);
 
-        if (this.mainEl.el.children.length === 0) {
-            this.mainEl.add(gLineEl());
-        }
-        // biome-ignore lint/style/noNonNullAssertion: added
-        const lineEl = pack(Array.from(this.mainEl.el.children).at(-1)! as HTMLElement);
-        const splitLines = l.items.reduce(
-            (acc: ShOutputItem[][], curr) => {
-                if (curr.type === "text" && curr.text === "\n") {
-                    acc.push([]);
-                } else {
-                    acc[acc.length - 1].push(curr);
+        for (const item of l.items) {
+            if (item.type === "edit" && item.xType === "newLine") {
+                this.rNewLine();
+            } else if (item.type === "cursor") {
+                if (item.col) {
+                    if (item.col.type === "abs") {
+                        this.setCursor({ row: this.cursor.row, col: item.col.v });
+                    } else if (item.col.type === "rel") {
+                        this.setCursor({ row: this.cursor.row, col: this.cursor.col + item.col.v });
+                    }
                 }
-                return acc;
-            },
-            [[]],
-        );
-        const firstL = splitLines.shift();
-        if (firstL) {
-            lineEl.add(firstL.map((item) => renderText(item)));
+                if (item.row) {
+                    if (item.row.type === "abs") {
+                        this.setCursor({ row: item.row.v, col: this.cursor.col });
+                    } else if (item.row.type === "rel") {
+                        this.setCursor({ row: this.cursor.row + item.row.v, col: this.cursor.col });
+                    }
+                }
+            } else if (item.type === "text") {
+                const rendered = renderText(item);
+                for (const { el, char } of rendered) {
+                    const w = this.rSet(el.el, char, {
+                        x: this.cursor.col,
+                        y: this.cursor.row,
+                    });
+                    this.zuobiao.x += w.width;
+                    this.cursor = this.zuoBiaoToClassical(this.zuobiao);
+                }
+            }
         }
-        this.mainEl.add(splitLines.map((line) => gLineEl().add(line.map((item) => renderText(item)))));
+    }
+    setSize(rows: number, cols: number) {
+        this.size.rows = rows;
+        this.size.cols = cols;
+        this.mainEl.style({
+            width: `${cols}ch`,
+        });
+        // cache
     }
 }

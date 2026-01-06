@@ -35,10 +35,10 @@ describe("Tokenize (String Splitting)", () => {
         const tokens = tokenize(input).tokens;
         expect(tokens).toEqual([
             { type: "text", content: "A" },
-            { type: "text", content: "\b" }, // 退格作为一个独立的 token
+            { type: "seq", content: "\b" },
             { type: "text", content: "B" },
-            { type: "text", content: "\n" },
-            { type: "text", content: "\n" },
+            { type: "seq", content: "\n" },
+            { type: "seq", content: "\n" },
             { type: "text", content: "C" },
         ]);
     });
@@ -52,7 +52,7 @@ describe("Tokenize (String Splitting)", () => {
             { type: "text", content: "Git:" },
             { type: "seq", content: "\x1b[0m" },
             { type: "text", content: " " },
-            { type: "text", content: "\b" },
+            { type: "seq", content: "\b" },
             { type: "text", content: " master" },
         ]);
     });
