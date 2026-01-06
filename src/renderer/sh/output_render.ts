@@ -69,7 +69,7 @@ export class Render {
                         } else l.push(i.segment);
                     }
                 }
-                const textEl = txt().add(l).style({ whiteSpace: "pre-wrap" });
+                const textEl = txt().add(l).style({ whiteSpace: "pre-wrap", display: "inline-block" });
                 // 应用样式
                 if (item.style) {
                     const s = item.style;
