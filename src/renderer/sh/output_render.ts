@@ -1,6 +1,6 @@
-import { txt, view, pack } from "dkh-ui";
+import { txt, view, pack, input } from "dkh-ui";
 import { wcswidth } from "simple-wcswidth";
-import { parseOut, type ShOutputItemText } from "./parser_out";
+import { key2seq, parseOut, type ShOutputItemText } from "./parser_out";
 
 type ClassicalCR = {
     col: number; // limit warp
@@ -15,6 +15,7 @@ type ZuoBiao = {
 export class Render {
     el = view();
     private mainEl = view();
+    private inputCursorEl = input().style({ position: "absolute", opacity: "0", pointerEvents: "none" });
     private seg = new Intl.Segmenter("en", { granularity: "grapheme" });
     private size = {
         rows: 24,
@@ -73,10 +74,41 @@ export class Render {
     private dataRest = {
         rest: "",
     };
+
+    private onDataCb: (data: string) => void = () => {};
+
     constructor() {
         this.el.add(this.mainEl);
         this.setSize(this.size.rows, this.size.cols);
         this.rNewLine();
+
+        let composing = false;
+        this.mainEl.on("click", () => {
+            this.inputCursorEl.el.focus();
+        });
+        this.inputCursorEl
+            .on("compositionstart", () => {
+                composing = true;
+            })
+            .on("compositionend", () => {
+                composing = false;
+            })
+            .on("input", () => {
+                this.onDataCb(this.inputCursorEl.gv);
+                this.inputCursorEl.sv("");
+            })
+            .on("keydown", (e) => {
+                if (composing) return;
+                const s = key2seq(e);
+                if (s) this.onDataCb(s);
+            })
+            .on("blur", () => {
+                composing = false;
+            });
+
+        this.el.add(this.inputCursorEl);
+        this.inputCursorEl.el.focus();
+        // todo 定位光标，渲染光标
     }
     private rSet(el: HTMLElement, char: string, zb: ZuoBiao) {
         const y = Math.min(zb.y, this.renderedLines.length - 1);
@@ -208,5 +240,8 @@ export class Render {
             width: `${cols}ch`,
         });
         // cache
+    }
+    onData(fn: (data: string) => void) {
+        this.onDataCb = fn;
     }
 }

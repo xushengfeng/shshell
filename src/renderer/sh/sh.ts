@@ -455,6 +455,9 @@ class Page {
 
             const outputEl = view().addInto(historyEl);
             const term = new Render();
+            term.onData((data) => {
+                shProcess.write(data);
+            });
             term.el.style({ maxHeight: "80vh", overflowY: "scroll" });
             outputEl.add(term.el);
 

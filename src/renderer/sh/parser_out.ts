@@ -555,3 +555,44 @@ export function parseOut(output: string) {
     const items = processTokens(tokens.tokens);
     return { items, rest: tokens.rest };
 }
+
+export function key2seq(keyevent: KeyboardEvent): string {
+    let seq = "";
+    if (keyevent.ctrlKey) {
+        const key = keyevent.key.toUpperCase();
+        if (key.length === 1 && key >= "A" && key <= "Z") {
+            seq += String.fromCharCode(key.charCodeAt(0) - 64);
+        } else if (key === " ") {
+            seq += String.fromCharCode(0);
+        } else if (key === "[") {
+            seq += String.fromCharCode(27);
+        } else if (key === "\\") {
+            seq += String.fromCharCode(28);
+        } else if (key === "]") {
+            seq += String.fromCharCode(29);
+        } else if (key === "^") {
+            seq += String.fromCharCode(30);
+        } else if (key === "_") {
+            seq += String.fromCharCode(31);
+        }
+    } else {
+        if (keyevent.key === "Enter") {
+            seq += "\r";
+        } else if (keyevent.key === "Backspace") {
+            seq += "\x7f";
+        } else if (keyevent.key === "Tab") {
+            seq += "\t";
+        } else if (keyevent.key.startsWith("Arrow")) {
+            if (keyevent.key === "ArrowUp") {
+                seq += "\x1b[A";
+            } else if (keyevent.key === "ArrowDown") {
+                seq += "\x1b[B";
+            } else if (keyevent.key === "ArrowRight") {
+                seq += "\x1b[C";
+            } else if (keyevent.key === "ArrowLeft") {
+                seq += "\x1b[D";
+            }
+        }
+    }
+    return seq;
+}
