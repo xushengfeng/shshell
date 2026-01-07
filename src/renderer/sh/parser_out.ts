@@ -43,7 +43,7 @@ export type ShOutputItemCursor = {
 };
 export type ShOutputItemEdit = {
     type: "edit";
-    xType: "newLine";
+    xType: "newLine" | "deleteLineBelowAll" | "deleteLineBelow" | "toSpaceLeft" | "toSpaceRight";
 };
 
 export type ShOutputItem =
@@ -512,12 +512,37 @@ function processToken(
                 // todo
                 const p = params[0] || 0;
                 if (p === 0) {
+                    return {
+                        items: [
+                            { type: "edit", xType: "toSpaceRight" },
+                            { type: "edit", xType: "deleteLineBelowAll" },
+                        ],
+                    };
                 }
                 if (p === 1) {
                 }
                 if (p === 2) {
                 }
                 if (p === 3) {
+                }
+                return { items: [{ type: "other", content: token.content }] };
+            }
+            if (last === "K") {
+                const p = params[0] || 0;
+                if (p === 0) {
+                    return {
+                        items: [{ type: "edit", xType: "toSpaceRight" }],
+                    };
+                }
+                if (p === 1) {
+                    return {
+                        items: [{ type: "edit", xType: "toSpaceLeft" }],
+                    };
+                }
+                if (p === 2) {
+                    return {
+                        items: [{ type: "edit", xType: "deleteLineBelow" }],
+                    };
                 }
                 return { items: [{ type: "other", content: token.content }] };
             }

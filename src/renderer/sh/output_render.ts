@@ -169,6 +169,14 @@ export class Render {
         this.mainEl.add(line);
         this.renderedLines.push({ chars: [], el: line.el });
     }
+    private rRmLineBelow() {
+        const line = this.renderedLines.pop();
+        if (line) {
+            line.el.remove();
+        } else {
+            console.warn("尝试删除不存在的行");
+        }
+    }
     private classicalToZuoBiao(cr: ClassicalCR): ZuoBiao {
         return { x: cr.col, y: cr.row }; // todo
     }
@@ -227,8 +235,26 @@ export class Render {
         console.log(this.dataRest.rest + data, l);
 
         for (const item of l.items) {
-            if (item.type === "edit" && item.xType === "newLine") {
-                this.rNewLine();
+            if (item.type === "edit") {
+                if (item.xType === "newLine") this.rNewLine();
+                else if (item.xType === "toSpaceRight") {
+                    for (let i = this.cursor.col; i < this.size.cols; i++) {
+                        const zb = this.classicalToZuoBiao({ row: this.cursor.row, col: i });
+                        this.rSet(txt(" ").el, " ", zb);
+                    }
+                } else if (item.xType === "toSpaceLeft") {
+                    for (let i = 0; i <= this.cursor.col; i++) {
+                        const zb = this.classicalToZuoBiao({ row: this.cursor.row, col: i });
+                        this.rSet(txt(" ").el, " ", zb);
+                    }
+                } else if (item.xType === "deleteLineBelowAll") {
+                    const count = this.renderedLines.length - this.zuobiao.y - 1;
+                    for (let i = 0; i < count; i++) {
+                        this.rRmLineBelow();
+                    }
+                } else if (item.xType === "deleteLineBelow") {
+                    this.rRmLineBelow();
+                }
             } else if (item.type === "cursor") {
                 if (item.col) {
                     if (item.col.type === "abs") {
