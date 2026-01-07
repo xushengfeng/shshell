@@ -86,3 +86,5 @@ console.log(`a${ansiEscapes.cursorForward(2)}${ansiEscapes.cursorDown(1)}b`);
 // 移动光标不添加新行
 
 console.log(`a${ansiEscapes.cursorForward(100)}bcd`); // b在同一行，后续的软换行
+
+setTimeout(() => {}, 10000);

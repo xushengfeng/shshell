@@ -26,3 +26,5 @@ if (flag === "displayBelow") {
 } else {
     console.log("no flag");
 }
+
+setTimeout(() => {}, 10000);
