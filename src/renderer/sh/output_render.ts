@@ -26,6 +26,7 @@ export class Render {
         col: 0,
     };
     private altbuf: Render | null = null;
+    private parent: Render | null = null;
     private mode = new Set<string>();
     private zuobiao: ZuoBiao = { x: 0, y: 0 };
     // 用于存储渲染后的单元格信息，2单位宽字符占两个单元格，第一个和其它的一样，第二个为is2Width
@@ -320,17 +321,20 @@ export class Render {
                 if (item.mode === "?47" || item.mode === "?1047" || item.mode === "?1049") {
                     // todo 事件传递出去
                     if (item.action === "set") {
-                        if (!this.altbuf) {
+                        if (!this.parent) {
                             this.altbuf = new Render();
                             this.altbuf.setSize(this.size.rows, this.size.cols);
                             this.altbuf.writeTokens(tokens.slice(tokenIndex + 1));
+                            this.altbuf.setAsAltBuf(this);
+                            this.altbuf.onData((data) => {
+                                this.onDataCb(data);
+                            });
                             this.el.add(this.altbuf.el);
                             break;
                         }
                     } else if (item.action === "reset") {
-                        if (this.altbuf) {
-                            this.altbuf.el.remove();
-                            this.altbuf = null;
+                        if (this.parent) {
+                            this.el.remove();
                         }
                     }
                 }
@@ -351,6 +355,9 @@ export class Render {
             width: `${cols}ch`,
         });
         // cache
+    }
+    setAsAltBuf(parent: Render) {
+        this.parent = parent;
     }
     onData(fn: (data: string) => void) {
         this.onDataCb = fn;
