@@ -56,12 +56,22 @@ export type ShOutputItemMode = {
     mode: string;
 };
 
+//** 不想设计api，提供原始数据（其实稍加解析了一下） */
+export type ShOutputItemRaw = {
+    type: "raw";
+    xType: "esc" | "csi" | "dcs" | "osc";
+    pre?: string;
+    end?: string;
+    ps: string[];
+};
+
 export type ShOutputItem =
     | ShOutputItemText
     | ShOutputItemScroll
     | ShOutputItemCursor
     | ShOutputItemEdit
     | ShOutputItemMode
+    | ShOutputItemRaw
     | {
           type: "other";
           content: string;
@@ -623,6 +633,11 @@ function processToken(
                     };
                 }
                 return { items: [{ type: "other", content: token.content }] };
+            }
+            if (last === "c") {
+                return {
+                    items: [{ type: "raw", xType: "csi", ps: params.map((i) => String(i)), end: "c" }],
+                };
             }
         }
         if (t === "c01") {

@@ -345,6 +345,13 @@ export class Render {
                     this.zuobiao.x += w.width;
                     this.cursor = this.zuoBiaoToClassical(this.zuobiao);
                 }
+            } else if (item.type === "raw") {
+                // todo 可以外放
+                if (item.xType === "csi") {
+                    if (item.end === "c" && !item.pre) {
+                        this.onDataCb("\x1b[?1;2c");
+                    }
+                }
             }
         }
     }
