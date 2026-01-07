@@ -48,7 +48,7 @@ export type ShOutputItemScroll = {
 };
 export type ShOutputItemEdit = {
     type: "edit";
-    xType: "newLine" | "deleteLineBelowAll" | "deleteLineBelow" | "toSpaceLeft" | "toSpaceRight";
+    xType: "newLine" | "deleteLineBelowAll" | "deleteLineBelow" | "deleteAll" | "toSpaceLeft" | "toSpaceRight";
 };
 export type ShOutputItemMode = {
     type: "mode";
@@ -597,6 +597,9 @@ function processToken(
                 if (p === 1) {
                 }
                 if (p === 2) {
+                    return {
+                        items: [{ type: "edit", xType: "deleteAll" }],
+                    };
                 }
                 if (p === 3) {
                 }

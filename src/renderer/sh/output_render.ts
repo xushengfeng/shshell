@@ -185,6 +185,11 @@ export class Render {
             console.warn("尝试删除不存在的行");
         }
     }
+    private rClearLine(zb: ZuoBiao) {
+        if (!this.renderedLines[zb.y]) return;
+        this.renderedLines[zb.y].chars = [];
+        this.renderedLines[zb.y].el.innerHTML = "";
+    }
     private classicalToZuoBiao(cr: ClassicalCR): ZuoBiao {
         if (this.renderedLines.length > this.size.rows) {
             const x = cr.col;
@@ -284,6 +289,11 @@ export class Render {
                     }
                 } else if (item.xType === "deleteLineBelow") {
                     this.rRmLineBelow();
+                } else if (item.xType === "deleteAll") {
+                    for (let i = 0; i < this.size.rows; i++) {
+                        const zb = this.classicalToZuoBiao({ row: i, col: 0 });
+                        this.rClearLine(zb);
+                    }
                 }
             } else if (item.type === "cursor") {
                 if (item.col) {
