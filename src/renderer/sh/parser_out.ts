@@ -41,6 +41,11 @@ export type ShOutputItemCursor = {
     row?: { type: "abs" | "rel"; v: number };
     col?: { type: "abs" | "rel"; v: number };
 };
+export type ShOutputItemScroll = {
+    type: "scroll";
+    row?: number;
+    col?: number;
+};
 export type ShOutputItemEdit = {
     type: "edit";
     xType: "newLine" | "deleteLineBelowAll" | "deleteLineBelow" | "toSpaceLeft" | "toSpaceRight";
@@ -53,6 +58,7 @@ export type ShOutputItemMode = {
 
 export type ShOutputItem =
     | ShOutputItemText
+    | ShOutputItemScroll
     | ShOutputItemCursor
     | ShOutputItemEdit
     | ShOutputItemMode
@@ -576,14 +582,7 @@ function processToken(
         if (t === "c01") {
             if (token.content === "\n") {
                 return {
-                    items: [
-                        { type: "edit", xType: "newLine" },
-                        {
-                            type: "cursor",
-                            row: { type: "rel", v: 1 },
-                            col: { type: "abs", v: 0 },
-                        },
-                    ],
+                    items: [{ type: "edit", xType: "newLine" }],
                 };
             }
             if (token.content === "\r") {

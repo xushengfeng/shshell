@@ -113,8 +113,14 @@ export class Render {
         // todo 定位光标，渲染光标
     }
     private rSet(el: HTMLElement, char: string, zb: ZuoBiao) {
-        const y = Math.min(zb.y, this.renderedLines.length - 1);
+        const y = zb.y;
         const x = zb.x;
+        // 扩展行
+        const lineCount = this.renderedLines.length;
+        for (let i = lineCount; i <= y; i++) {
+            this.rNewLine();
+        }
+
         const width = wcswidth(char);
         const { chars: line, el: lel } = this.renderedLines[y];
         function set(el: HTMLElement, _char: string, i: number) {
@@ -144,7 +150,7 @@ export class Render {
             }
             line[i] = { el, char: _char };
         }
-        // 扩展行
+        // 扩展行内（列）
         const lineEndStart = line.length;
         for (let i = lineEndStart; i < x; i++) {
             set(txt(" ").el, " ", i);
@@ -180,17 +186,24 @@ export class Render {
         }
     }
     private classicalToZuoBiao(cr: ClassicalCR): ZuoBiao {
+        if (this.renderedLines.length > this.size.rows) {
+            const x = cr.col;
+            const y = this.renderedLines.length - (this.size.rows - cr.row);
+            return { x, y };
+        }
         return { x: cr.col, y: cr.row }; // todo
     }
     private zuoBiaoToClassical(zb: ZuoBiao): ClassicalCR {
+        if (this.renderedLines.length > this.size.rows) {
+            const col = zb.x;
+            const row = this.size.rows - (this.renderedLines.length - zb.y);
+            return { col, row };
+        }
         return { col: zb.x, row: zb.y }; // todo 换行
     }
     private setCursor(cr: ClassicalCR) {
         const col = Math.max(0, Math.min(cr.col, this.size.cols - 1));
-        const row = Math.max(
-            0,
-            Math.min(cr.row, this.zuoBiaoToClassical({ x: 0, y: this.renderedLines.length }).row - 1),
-        );
+        const row = Math.max(0, Math.min(cr.row, this.size.rows - 1));
         this.cursor = { col, row };
         this.zuobiao = this.classicalToZuoBiao(this.cursor);
     }
@@ -249,8 +262,12 @@ export class Render {
         };
         for (const [tokenIndex, item] of tokens.entries()) {
             if (item.type === "edit") {
-                if (item.xType === "newLine") this.rNewLine();
-                else if (item.xType === "toSpaceRight") {
+                if (item.xType === "newLine") {
+                    this.rNewLine();
+                    this.zuobiao.y += 1;
+                    this.zuobiao.x = 0;
+                    this.cursor = this.zuoBiaoToClassical(this.zuobiao);
+                } else if (item.xType === "toSpaceRight") {
                     for (let i = this.cursor.col; i < this.size.cols; i++) {
                         const zb = this.classicalToZuoBiao({ row: this.cursor.row, col: i });
                         this.rSet(txt(" ").el, " ", zb);
@@ -310,10 +327,7 @@ export class Render {
             } else if (item.type === "text") {
                 const rendered = renderText(item);
                 for (const { el, char } of rendered) {
-                    const w = this.rSet(el.el, char, {
-                        x: this.cursor.col,
-                        y: this.cursor.row,
-                    });
+                    const w = this.rSet(el.el, char, this.zuobiao);
                     this.zuobiao.x += w.width;
                     this.cursor = this.zuoBiaoToClassical(this.zuobiao);
                 }

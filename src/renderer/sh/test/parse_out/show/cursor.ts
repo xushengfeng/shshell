@@ -1,5 +1,7 @@
 import ansiEscapes from "ansi-escapes";
 
+console.log(`a${ansiEscapes.cursorForward(2)}${ansiEscapes.cursorDown(1)}b`);
+
 console.log("\\b在不同尺寸字符下的表现");
 
 process.stdout.write("你好");
@@ -83,7 +85,7 @@ console.log(`a${ansiEscapes.cursorForward(2)}b`);
 
 console.log(`a${ansiEscapes.cursorForward(2)}${ansiEscapes.cursorDown(1)}b`);
 
-// 移动光标不添加新行
+// 超出视图范围，无法下移
 
 console.log(`a${ansiEscapes.cursorForward(100)}bcd`); // b在同一行，后续的软换行
 
