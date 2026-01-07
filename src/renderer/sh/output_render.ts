@@ -233,6 +233,13 @@ export class Render {
         const l = parseOut(this.dataRest.rest + data);
         this.dataRest.rest = l.rest;
         console.log(this.dataRest.rest + data, l);
+        if (l.items.find((i) => i.type === "other")) {
+            console.warn(
+                "存在未处理的输出项，可能存在bug",
+                l,
+                l.items.filter((i) => i.type === "other"),
+            );
+        }
 
         for (const item of l.items) {
             if (item.type === "edit") {
