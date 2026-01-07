@@ -119,13 +119,28 @@ export class Render {
             const w = _char === char ? width : wcswidth(_char);
             pack(el).style({ whiteSpace: "pre-wrap", display: "inline-block", width: w === 2 ? "2ch" : "1ch" });
             const has = line[i];
-            if (has && "el" in has) {
-                has.el.replaceWith(el);
-                line[i] = { el, char: _char };
+            if (has) {
+                if ("el" in has) {
+                    has.el.replaceWith(el);
+                } else {
+                    const last = line[i - 1];
+                    if (last && "el" in last) {
+                        last.el.after(el);
+                    } else {
+                        const pre = line[i + 1];
+                        if (pre && "el" in pre) {
+                            pre.el.before(el);
+                        } else {
+                            console.warn("无法定位单元格位置，可能数据结构有误", line, i);
+                            console.trace();
+                            lel.appendChild(el);
+                        }
+                    }
+                }
             } else {
                 lel.appendChild(el); // todo 性能
-                line[i] = { el, char: _char };
             }
+            line[i] = { el, char: _char };
         }
         // 扩展行
         const lineEndStart = line.length;
