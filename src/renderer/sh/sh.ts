@@ -417,12 +417,10 @@ class Page {
                             foreground: "#000",
                             selectionBackground: "#00a",
                         },
-                        rows: 1,
+                        rows: 30,
+                        cols: 80,
                     });
                     _term = term;
-                    term.onRender(() => {
-                        term.resize(term.cols, Math.min(30, term.buffer.normal.length));
-                    });
                     let selection = "";
                     term.onKey(({ domEvent }) => {
                         if (domEvent.key === "c" && domEvent.ctrlKey) {
