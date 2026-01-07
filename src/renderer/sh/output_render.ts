@@ -140,6 +140,12 @@ export class Render {
         // 如果是宽字符，设置下一个单元格为占位
         if (width === 2) {
             line[x + 1] = { is2Width: true };
+        } else if (line[x + 1] && "is2Width" in line[x + 1]) {
+            if (x + 1 + 1 === line.length) {
+                line.pop();
+            } else {
+                set(txt(" ").el, " ", x + 1);
+            }
         }
         return { width };
     }
