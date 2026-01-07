@@ -45,11 +45,17 @@ export type ShOutputItemEdit = {
     type: "edit";
     xType: "newLine" | "deleteLineBelowAll" | "deleteLineBelow" | "toSpaceLeft" | "toSpaceRight";
 };
+export type ShOutputItemMode = {
+    type: "mode";
+    action: "set" | "reset";
+    mode: string;
+};
 
 export type ShOutputItem =
     | ShOutputItemText
     | ShOutputItemCursor
     | ShOutputItemEdit
+    | ShOutputItemMode
     | {
           type: "other";
           content: string;
@@ -413,6 +419,26 @@ function processToken(
             if (last === "m") {
                 applySgr(currentStyle, params);
                 return { items: [], style: currentStyle };
+            }
+            if (last === "h") {
+                const p = x.startsWith("?") ? parseCSIContent(x.slice(1)) : params;
+                return {
+                    items: p.map((mode) => ({
+                        type: "mode",
+                        action: "set",
+                        mode: x.startsWith("?") ? `?${mode}` : `${mode}`,
+                    })),
+                };
+            }
+            if (last === "l") {
+                const p = x.startsWith("?") ? parseCSIContent(x.slice(1)) : params;
+                return {
+                    items: p.map((mode) => ({
+                        type: "mode",
+                        action: "reset",
+                        mode: x.startsWith("?") ? `?${mode}` : `${mode}`,
+                    })),
+                };
             }
             if (last === "A") {
                 return {

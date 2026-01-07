@@ -1,6 +1,6 @@
 import { txt, view, pack, input } from "dkh-ui";
 import { wcswidth } from "simple-wcswidth";
-import { key2seq, parseOut, type ShOutputItemText } from "./parser_out";
+import { key2seq, parseOut, type ShOutputItem, type ShOutputItemText } from "./parser_out";
 
 type ClassicalCR = {
     col: number; // limit warp
@@ -25,6 +25,8 @@ export class Render {
         row: 0,
         col: 0,
     };
+    private altbuf: Render | null = null;
+    private mode = new Set<string>();
     private zuobiao: ZuoBiao = { x: 0, y: 0 };
     // 用于存储渲染后的单元格信息，2单位宽字符占两个单元格，第一个和其它的一样，第二个为is2Width
     // 提供渲染元素 原始坐标 等信息 不处理自动换行，应该由cursor自动计算
@@ -194,6 +196,21 @@ export class Render {
     }
 
     write(data: string) {
+        const l = parseOut(this.dataRest.rest + data);
+        this.dataRest.rest = l.rest;
+        console.log(this.dataRest.rest + data, l);
+        if (l.items.find((i) => i.type === "other")) {
+            console.warn(
+                "存在未处理的输出项，可能存在bug",
+                l,
+                l.items.filter((i) => i.type === "other"),
+            );
+        }
+        if (this.altbuf) {
+            this.altbuf.writeTokens(l.items);
+        } else this.writeTokens(l.items);
+    }
+    writeTokens(tokens: ShOutputItem[]) {
         const renderText = (item: ShOutputItemText) => {
             return Array.from(this.seg.segment(item.text)).map((i) => {
                 const t = i.segment;
@@ -230,18 +247,7 @@ export class Render {
                 return { el: textEl, char: t };
             });
         };
-        const l = parseOut(this.dataRest.rest + data);
-        this.dataRest.rest = l.rest;
-        console.log(this.dataRest.rest + data, l);
-        if (l.items.find((i) => i.type === "other")) {
-            console.warn(
-                "存在未处理的输出项，可能存在bug",
-                l,
-                l.items.filter((i) => i.type === "other"),
-            );
-        }
-
-        for (const item of l.items) {
+        for (const [tokenIndex, item] of tokens.entries()) {
             if (item.type === "edit") {
                 if (item.xType === "newLine") this.rNewLine();
                 else if (item.xType === "toSpaceRight") {
@@ -275,6 +281,30 @@ export class Render {
                         this.setCursor({ row: item.row.v, col: this.cursor.col });
                     } else if (item.row.type === "rel") {
                         this.setCursor({ row: this.cursor.row + item.row.v, col: this.cursor.col });
+                    }
+                }
+            } else if (item.type === "mode") {
+                if (item.action === "set") {
+                    this.mode.add(item.mode.toString());
+                } else if (item.action === "reset") {
+                    this.mode.delete(item.mode.toString());
+                }
+
+                if (item.mode === "?47" || item.mode === "?1047" || item.mode === "?1049") {
+                    // todo 事件传递出去
+                    if (item.action === "set") {
+                        if (!this.altbuf) {
+                            this.altbuf = new Render();
+                            this.altbuf.setSize(this.size.rows, this.size.cols);
+                            this.altbuf.writeTokens(tokens.slice(tokenIndex + 1));
+                            this.el.add(this.altbuf.el);
+                            break;
+                        }
+                    } else if (item.action === "reset") {
+                        if (this.altbuf) {
+                            this.altbuf.el.remove();
+                            this.altbuf = null;
+                        }
                     }
                 }
             } else if (item.type === "text") {
