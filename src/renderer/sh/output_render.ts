@@ -162,7 +162,10 @@ export class Render {
     }
     private setCursor(cr: ClassicalCR) {
         const col = Math.max(0, Math.min(cr.col, this.size.cols - 1));
-        const row = Math.max(0, Math.min(cr.row, this.size.rows - 1));
+        const row = Math.max(
+            0,
+            Math.min(cr.row, this.zuoBiaoToClassical({ x: 0, y: this.renderedLines.length }).row - 1),
+        );
         this.cursor = { col, row };
         this.zuobiao = this.classicalToZuoBiao(this.cursor);
     }
