@@ -449,10 +449,12 @@ class Page {
                     const termEl = view().addInto(outputEl);
                     term.open(termEl.el);
                     term.write(rawT);
+                    console.log(JSON.stringify(rawT).slice(1, -1));
                 });
 
             const outputEl = view().addInto(historyEl);
             const term = new Render();
+            term.setSize(30, 80);
             term.onData((data) => {
                 shProcess.write(data);
             });
