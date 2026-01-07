@@ -171,6 +171,28 @@ const csiEnd = [
     "`",
 ].sort((a, b) => b.length - a.length);
 
+const oscEnd = ["\x07", "\x1b\\"].sort((a, b) => b.length - a.length);
+
+const dcsEnd = ["\x1b\\"].sort((a, b) => b.length - a.length);
+
+function findSeqEnd(_content: string, endMarkers: string[]): { matchEnd: boolean; deltaPos: number; content: string } {
+    const nl = endMarkers;
+    let matchEnd = false;
+    let content = "";
+    let pos = 0;
+    o: while (pos < _content.length) {
+        const c = _content[pos];
+        content += c;
+        pos++;
+        for (const end of nl) {
+            if (content.endsWith(end)) {
+                matchEnd = true;
+                break o;
+            }
+        }
+    }
+    return { matchEnd, deltaPos: pos, content };
+}
 /**
  * 第一步：将原始字符串拆分为 TermSequence[]
  * 识别出转义序列和其他字符（包括特殊控制字符）
@@ -213,28 +235,29 @@ export function tokenize(output: string) {
         }
 
         if (t === "csi") {
-            let content = "\x1b[";
-            const nl = csiEnd;
-            let matchEnd = false;
-            o: while (pos < output.length) {
-                const c = output[pos];
-                if (c === "\n" || c === "\r" || c === "\t") break;
-                content += c;
-                pos++;
-                for (const end of nl) {
-                    if (content.endsWith(end)) {
-                        matchEnd = true;
-                        break o;
-                    }
-                }
-            }
-            if (matchEnd) {
-                tokens.push({ type: "seq", content });
+            const result = findSeqEnd(output.slice(pos), csiEnd);
+            pos += result.deltaPos;
+            if (result.matchEnd) {
+                tokens.push({ type: "seq", content: `\x1b[${result.content}` });
             } else {
                 restMaySeq = output.slice(nowStart);
             }
         } else if (t === "osc") {
+            const result = findSeqEnd(output.slice(pos), oscEnd);
+            pos += result.deltaPos;
+            if (result.matchEnd) {
+                tokens.push({ type: "seq", content: `\x1b]${result.content}` });
+            } else {
+                restMaySeq = output.slice(nowStart);
+            }
         } else if (t === "dcs") {
+            const result = findSeqEnd(output.slice(pos), dcsEnd);
+            pos += result.deltaPos;
+            if (result.matchEnd) {
+                tokens.push({ type: "seq", content: `\x1bP${result.content}` });
+            } else {
+                restMaySeq = output.slice(nowStart);
+            }
         } else if (t === "esc") {
             const first = output[pos];
             if (first) {
@@ -293,7 +316,7 @@ export function tokenize(output: string) {
                 // 连续读取普通字符，直到遇到控制字符或转义序列
                 while (pos < output.length) {
                     const c = output[pos];
-                    if (c === "\x1b" || c === "\x9b" || c === "\n" || c === "\r" || c === "\b" || c === "\t") {
+                    if (["\x1b", "\x9b", "\x9d", "\x90", "\n", "\r", "\b", "\t"].includes(c)) {
                         break;
                     }
                     text += c;

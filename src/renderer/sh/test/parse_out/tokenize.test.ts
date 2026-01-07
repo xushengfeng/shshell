@@ -57,16 +57,13 @@ describe("Tokenize (String Splitting)", () => {
         ]);
     });
 
-    it("should handle non-CSI sequences (ESC + other)", () => {
-        // ESC \ (String Terminator)
-        const input = "Text\x1b\\End";
-        const tokens = tokenize(input).tokens;
-        // 通常 tokenize 会将 ESC 视为一种序列开始，如果找不到 [，
-        // 它会吞掉 ESC 本身。
-        // 根据我们的实现，如果遇到 ESC 但后面不是 [，它会 push 一个 type: 'seq' content: '\x1b'
-        // 或者如果后面还有字符，可能会丢失。
-        // 让我们期望它至少能安全地拆分，不报错。
-        expect(tokens.length).toBeGreaterThan(0);
+    it("should handle OCS", () => {
+        expect(tokenize("\x1b]any\x07").tokens).toEqual([{ type: "seq", content: "\x1b]any\x07" }]);
+        expect(tokenize("\x1b]any\x1b\\").tokens).toEqual([{ type: "seq", content: "\x1b]any\x1b\\" }]);
+    });
+
+    it("should handle DCS", () => {
+        expect(tokenize("\x1bPany\x1b\\").tokens).toEqual([{ type: "seq", content: "\x1bPany\x1b\\" }]);
     });
 
     it("should handle uncompleted sequences", () => {
