@@ -226,6 +226,49 @@ export function tokenize(output: string) {
         } else if (t === "osc") {
         } else if (t === "dcs") {
         } else if (t === "esc") {
+            const first = output[pos];
+            if (first) {
+                if (first === " ") {
+                    const next = output[pos + 1];
+                    if (next) {
+                        tokens.push({ type: "seq", content: `\x1b ${next}` });
+                        pos += 2;
+                    } else {
+                        restMaySeq = output.slice(nowStart);
+                    }
+                } else if (["(", ")", "*", "+"].includes(first)) {
+                    const next = output[pos + 1];
+                    if (next) {
+                        if (next === "%" || next === '"') {
+                            const third = output[pos + 2];
+                            if (third) {
+                                tokens.push({ type: "seq", content: `\x1b${first}${next}${third}` });
+                                pos += 3;
+                            } else {
+                                restMaySeq = output.slice(nowStart);
+                            }
+                        } else {
+                            tokens.push({ type: "seq", content: `\x1b${first}${next}` });
+                            pos += 2;
+                        }
+                    } else {
+                        restMaySeq = output.slice(nowStart);
+                    }
+                } else if (["-", ".", "/"].includes(first)) {
+                    const third = output[pos + 2];
+                    if (third) {
+                        tokens.push({ type: "seq", content: `\x1b${first}${third}` });
+                        pos += 2;
+                    } else {
+                        restMaySeq = output.slice(nowStart);
+                    }
+                } else {
+                    tokens.push({ type: "seq", content: `\x1b${first}` });
+                    pos++;
+                }
+            } else {
+                restMaySeq = output.slice(nowStart);
+            }
         } else {
             if (char === "\n" || char === "\r" || char === "\b") {
                 tokens.push({ type: "seq", content: char });

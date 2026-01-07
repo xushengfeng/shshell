@@ -81,3 +81,20 @@ describe("Tokenize (String Splitting)", () => {
         });
     });
 });
+
+describe("real world cases", () => {
+    it("nano", () => {
+        expect(tokenize("\x1B[?2004h\x1B)0\x1B7\x1B[?47h\x1B[1;30r\x1B[4l\x1B[?1h\x1B=\x1B[?1h\x1B=").tokens).toEqual([
+            { type: "seq", content: "\x1B[?2004h" },
+            { type: "seq", content: "\x1B)0" },
+            { type: "seq", content: "\x1B7" },
+            { type: "seq", content: "\x1B[?47h" },
+            { type: "seq", content: "\x1B[1;30r" },
+            { type: "seq", content: "\x1B[4l" },
+            { type: "seq", content: "\x1B[?1h" },
+            { type: "seq", content: "\x1B=" },
+            { type: "seq", content: "\x1B[?1h" },
+            { type: "seq", content: "\x1B=" },
+        ]);
+    });
+});
