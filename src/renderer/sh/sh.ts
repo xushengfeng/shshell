@@ -429,6 +429,7 @@ class Page {
                         }
                     });
                     term.onData((data) => {
+                        console.log(JSON.stringify(data).slice(1, -1));
                         if (data === "\x03") {
                             const select = selection;
                             if (select.length > 0) {
