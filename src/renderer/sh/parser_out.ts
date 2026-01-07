@@ -591,9 +591,6 @@ function processTokens(tokens: TermSequence[]): ShOutputItem[] {
     // 逐个 Token 处理
     for (const token of tokens) {
         const result = processToken(token, structuredClone(currentStyle));
-        if (result.items.length === 0) {
-            items.push({ type: "other", content: token.content });
-        }
         items.push(...result.items);
         if (result.style) currentStyle = result.style;
     }
