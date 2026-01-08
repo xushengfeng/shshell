@@ -8,7 +8,7 @@ const pty = require("node-pty") as typeof import("node-pty");
 const { Client } = require("ssh2") as typeof import("ssh2");
 import { Terminal } from "@xterm/xterm";
 import "@xterm/xterm/css/xterm.css";
-import { parseIn, type ShInputItem } from "./parser_in";
+import { parseIn, parseIn2, type ShInputItem2 } from "./parser_in";
 import { Render } from "./output_render";
 import { pathMatchCursor } from "./path_match_cursor";
 
@@ -252,11 +252,12 @@ class Page {
         ): { list: InputTip; pre: string; last: string } => {
             const res: InputTip = [];
 
-            const parse = parseIn(input);
+            const parse = parseIn2(parseIn(input));
             const pos = Math.min(cursorStart, cursorEnd);
 
             let matchIndex = -1;
-            let matchParseItem: ShInputItem | undefined = undefined;
+            let matchParseItem: ShInputItem2 | undefined = undefined;
+            const matchParseList = parse; // todo 处理嵌套
 
             for (const [i, item] of parse.entries()) {
                 if (item.start <= pos && item.end >= pos) {
@@ -279,7 +280,7 @@ class Page {
 
             console.log({ pre, cur, last, matchParseItem, parse });
 
-            if (matchParseItem.type === "main" || !parse.find((i) => i.type === "main")) {
+            if (matchParseItem.type === "main" || !matchParseList.find((i) => i.type === "main")) {
                 const l = this.allCommands();
                 for (const cmd of l) {
                     if (cmd.startsWith(cur)) {
@@ -288,7 +289,11 @@ class Page {
                 }
             } else {
                 // is path
-                if (!matchParseItem.input.endsWith(path.sep) && matchParseItem.type === "arg") {
+                if (
+                    !matchParseItem.input.endsWith(path.sep) &&
+                    matchParseItem.type === "arg" &&
+                    !matchParseItem.chindren
+                ) {
                     const [stat] = tryX(() => fs.statSync(path.isAbsolute(cur) ? cur : path.join(this.cwd, cur)));
                     if (stat?.isDirectory()) return { list: [{ x: `${cur}${path.sep}`, des: "" }], pre, last };
                 }
@@ -312,7 +317,7 @@ class Page {
         };
 
         const getInputStyle = (input: string) => {
-            const parse = parseIn(input);
+            const parse = parseIn2(parseIn(input));
             console.log("input", parse);
             return parse.map((item) => {
                 const color =
