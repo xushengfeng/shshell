@@ -28,6 +28,7 @@ export class Render {
     private altbuf: Render | null = null;
     private parent: Render | null = null;
     private mode = new Set<string>();
+    private data: Partial<{ cursor: { col: number; row: number }[] }> = {};
     private zuobiao: ZuoBiao = { x: 0, y: 0 };
     // 用于存储渲染后的单元格信息，2单位宽字符占两个单元格，第一个和其它的一样，第二个为is2Width
     // 提供渲染元素 原始坐标 等信息 不处理自动换行，应该由cursor自动计算
@@ -350,6 +351,22 @@ export class Render {
                 if (item.xType === "csi") {
                     if (item.end === "c" && !item.pre) {
                         this.onDataCb("\x1b[?1;2c");
+                    }
+                }
+                if (item.xType === "esc") {
+                    if (item.end === "7" && !item.pre) {
+                        // 保存光标 save cursor
+                        const l = this.data.cursor ?? [];
+                        l.push({ col: this.cursor.col, row: this.cursor.row });
+                        this.data.cursor = l;
+                        // todo attr
+                    }
+                    if (item.end === "8" && !item.pre) {
+                        const l = this.data.cursor;
+                        if (l && l.length > 0) {
+                            const pos = l.pop();
+                            if (pos) this.setCursor({ col: pos.col, row: pos.row });
+                        }
                     }
                 }
             }

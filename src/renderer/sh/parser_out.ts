@@ -663,6 +663,18 @@ function processToken(
                 };
             }
         }
+        if (t === "esc") {
+            if (x === "7") {
+                return {
+                    items: [{ type: "raw", xType: "esc", end: "7", ps: [] }],
+                };
+            }
+            if (x === "8") {
+                return {
+                    items: [{ type: "raw", xType: "esc", end: "8", ps: [] }],
+                };
+            }
+        }
         if (t === "c01") {
             if (token.content === "\n") {
                 return {
