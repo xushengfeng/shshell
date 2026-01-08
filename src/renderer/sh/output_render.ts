@@ -270,7 +270,10 @@ export class Render {
         for (const [tokenIndex, item] of tokens.entries()) {
             if (item.type === "edit") {
                 if (item.xType === "newLine") {
-                    this.rNewLine();
+                    if (this.classicalToZuoBiao(this.cursor).y >= this.renderedLines.length - 1) {
+                        // todo 考虑到自动换行，估计会有bug
+                        this.rNewLine();
+                    }
                     this.zuobiao.y += 1;
                     this.zuobiao.x = 0;
                     this.cursor = this.zuoBiaoToClassical(this.zuobiao);
