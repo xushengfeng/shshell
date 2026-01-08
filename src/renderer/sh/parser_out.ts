@@ -781,6 +781,8 @@ export function key2seq(keyevent: KeyboardEvent): string {
             seq += "\x7f";
         } else if (keyevent.key === "Tab") {
             seq += "\t";
+        } else if (keyevent.key === "Escape") {
+            seq += "\x1b";
         } else if (keyevent.key.startsWith("Arrow")) {
             if (keyevent.key === "ArrowUp") {
                 seq += "\x1b[A";
