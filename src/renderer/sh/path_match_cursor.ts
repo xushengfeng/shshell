@@ -1,10 +1,6 @@
 const path = require("node:path") as typeof import("node:path");
 
-export function pathMatchCursor(
-    cur: string,
-    curOffset: number,
-    cwd: string,
-): { basePath: string; focusPart: string; p: string } {
+export function pathMatchCursor(cur: string, curOffset: number) {
     const pathList = cur.split(path.sep);
     let pathPos = 0;
     let pathIndex = 0;
@@ -23,9 +19,7 @@ export function pathMatchCursor(
         basePathI += 1;
     }
     const basePath = cur.slice(0, basePathI);
-    const focusPart = pathList[pathIndex] ?? "";
+    const focusPart = pathList[pathIndex];
 
-    // 空表示从 cwd 开始，即相对路径
-    const p = path.normalize(basePath === "" ? cwd : path.isAbsolute(basePath) ? basePath : path.join(cwd, basePath));
-    return { basePath, focusPart, p };
+    return { basePath, focusPart };
 }

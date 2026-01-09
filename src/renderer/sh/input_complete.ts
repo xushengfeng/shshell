@@ -101,7 +101,12 @@ export function getTip(
                 } else res.push({ x: `${curValue}${path.sep}`, des: "" });
             }
         }
-        const { basePath, focusPart, p } = pathMatchCursor(curValue, offset - yinhao.length, sys.cwd);
+        const { basePath, focusPart } = pathMatchCursor(curValue, offset - yinhao.length);
+
+        // 空表示从 cwd 开始，即相对路径
+        const p = path.normalize(
+            basePath === "" ? sys.cwd : path.isAbsolute(basePath) ? basePath : path.join(sys.cwd, basePath),
+        );
         const [dir] = tryX(() => sys.readDirSync(p));
         for (const file of dir ?? []) {
             if (!file.startsWith(focusPart)) continue; // todo 模糊
