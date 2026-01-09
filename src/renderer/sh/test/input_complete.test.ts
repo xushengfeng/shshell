@@ -304,7 +304,7 @@ describe("仅路径补全，基本命令补全", () => {
         it("可执行文件，引号", () => {
             const res = getTip(parse('"/usr/b"'), 7, 7, sysObj);
             expect(res).toEqual({
-                list: [{ x: '"/usr/bin"', show: "bin", des: "dir" }],
+                list: [{ x: '"/usr/bin"', show: "bin", des: "dir", cursorOffset: -1 }],
                 pre: "",
                 last: "",
             });
@@ -312,7 +312,7 @@ describe("仅路径补全，基本命令补全", () => {
         it("可执行文件，相对目录，引号", () => {
             const res = getTip(parse('"./bi"'), 5, 5, { ...sysObj, cwd: "/usr" });
             expect(res).toEqual({
-                list: [{ x: '"./bin"', show: "bin", des: "dir" }],
+                list: [{ x: '"./bin"', show: "bin", des: "dir", cursorOffset: -1 }],
                 pre: "",
                 last: "",
             });
@@ -421,7 +421,7 @@ describe("仅路径补全，基本命令补全", () => {
                 it("常规", () => {
                     const res = getTip(parse('cd "/home/al'), 11, 11, sysObj);
                     expect(res).toEqual({
-                        list: [{ x: '"/home/alice"', show: "alice", des: "dir" }], // todo 光标定位
+                        list: [{ x: '"/home/alice"', show: "alice", des: "dir", cursorOffset: -1 }],
                         pre: "cd ",
                         last: "",
                     });
@@ -429,7 +429,7 @@ describe("仅路径补全，基本命令补全", () => {
                 it("/补全", () => {
                     const res = getTip(parse('cd "/home'), 9, 9, sysObj);
                     expect(res).toEqual({
-                        list: [{ x: '"/home/"', des: "" }],
+                        list: [{ x: '"/home/"', des: "", cursorOffset: -1 }],
                         pre: "cd ",
                         last: "",
                     });
@@ -437,7 +437,7 @@ describe("仅路径补全，基本命令补全", () => {
                 it("/补全2", () => {
                     const res = getTip(parse('cd "/home"'), 9, 9, sysObj);
                     expect(res).toEqual({
-                        list: [{ x: '"/home/"', des: "" }],
+                        list: [{ x: '"/home/"', des: "", cursorOffset: -1 }],
                         pre: "cd ",
                         last: "",
                     });
@@ -446,7 +446,7 @@ describe("仅路径补全，基本命令补全", () => {
                     const res = getTip(parse('cd ".'), 9, 9, sysObj);
                     expect(res).toEqual({
                         list: [
-                            { x: '"./"', des: "" },
+                            { x: '"./"', des: "", cursorOffset: -1 },
                             {
                                 des: "file",
                                 show: ".bashrc",

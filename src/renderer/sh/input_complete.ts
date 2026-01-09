@@ -4,7 +4,7 @@ import { pathMatchCursor } from "./path_match_cursor";
 
 const path = require("node:path") as typeof import("node:path");
 
-export type InputTip = { show?: string; x: string; des: string }[];
+export type InputTip = { show?: string; x: string; des: string; cursorOffset?: number }[];
 
 export function matchItem(parse: ShInputItem2[], cursorPos: number) {
     // 表示层级，方便处理嵌套
@@ -91,13 +91,13 @@ export function getTip(
                 const stat = sys.statSync(path.isAbsolute(curValue) ? curValue : path.join(sys.cwd, curValue));
                 if (stat?.isDirectory()) {
                     if (yinhao) {
-                        res.push({ x: `${yinhao}${curValue}${path.sep}${yinhao}`, des: "" });
+                        res.push({ x: `${yinhao}${curValue}${path.sep}${yinhao}`, des: "", cursorOffset: -1 });
                     } else res.push({ x: `${curValue}${path.sep}`, des: "" });
                     return;
                 }
             } else {
                 if (yinhao) {
-                    res.push({ x: `${yinhao}${curValue}${path.sep}${yinhao}`, des: "" });
+                    res.push({ x: `${yinhao}${curValue}${path.sep}${yinhao}`, des: "", cursorOffset: -1 });
                 } else res.push({ x: `${curValue}${path.sep}`, des: "" });
             }
         }
@@ -115,7 +115,14 @@ export function getTip(
                 : file.replaceAll(" ", "\\ ").replaceAll("'", "\\'").replaceAll('"', '\\"'); // todo 转义
             const nPath = curValue ? basePath + nFile : nFile;
             const nnPath = yinhao ? `${yinhao}${nPath}${yinhao}` : nPath;
-            res.push(...map(file, path.join(p, file), { show: file, x: nnPath, des: "" }));
+            res.push(
+                ...map(file, path.join(p, file), {
+                    show: file,
+                    x: nnPath,
+                    des: "",
+                    ...(yinhao ? { cursorOffset: -1 } : {}),
+                }),
+            );
         }
     }
 
@@ -125,13 +132,14 @@ export function getTip(
                 fillPath(curValue, matchParseItem.input, cursorStart - curPosStart, (_, p, c) => {
                     const stat = sys.statSync(path.join(p));
                     if (!stat) {
-                        return [{ show: c.show, x: c.x, des: "error" }];
+                        return [{ ...c, des: "error" }];
                     }
                     if (stat.isDirectory()) {
-                        return [{ show: c.show, x: c.x, des: "dir" }];
+                        return [{ ...c, des: "dir" }];
                     }
                     if (sys.isExeSync(path.join(p))) {
-                        return [{ show: c.show, x: c.x, des: "file" }];
+                        const { cursorOffset: _, ...rest } = c;
+                        return [{ ...rest, des: "file" }];
                     }
                     return [];
                 });
@@ -147,13 +155,14 @@ export function getTip(
         fillPath(curValue, matchParseItem.input, cursorStart - curPosStart, (_, p, c) => {
             const stat = sys.statSync(p);
             if (!stat) {
-                return [{ show: c.show, x: c.x, des: "error" }];
+                return [{ ...c, des: "error" }];
             }
             if (stat.isDirectory()) {
-                return [{ show: c.show, x: c.x, des: "dir" }];
+                return [{ ...c, des: "dir" }];
             }
             if (p) {
-                return [{ show: c.show, x: c.x, des: "file" }];
+                const { cursorOffset: _, ...rest } = c;
+                return [{ ...rest, des: "file" }];
             }
             return [];
         });
