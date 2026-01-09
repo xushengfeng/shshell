@@ -8,17 +8,10 @@ const pty = require("node-pty") as typeof import("node-pty");
 const { Client } = require("ssh2") as typeof import("ssh2");
 import { Terminal } from "@xterm/xterm";
 import "@xterm/xterm/css/xterm.css";
-import { parseIn, parseIn2, type ShInputItem2 } from "./parser_in";
+import { parseIn, parseIn2 } from "./parser_in";
 import { Render } from "./output_render";
-import { pathMatchCursor } from "./path_match_cursor";
-
-function tryX<T>(x: () => T): [T, null] | [null, Error] {
-    try {
-        return [x(), null];
-    } catch (error) {
-        return [null, error as Error];
-    }
-}
+import { getTip } from "./input_complete";
+import { tryX } from "../try";
 
 class Sh {
     private conn: import("ssh2").Client | undefined;
@@ -245,104 +238,6 @@ class Page {
             };
         };
 
-        const getTip = (
-            input: string,
-            cursorStart: number,
-            cursorEnd: number,
-        ): { list: InputTip; pre: string; last: string } => {
-            const res: InputTip = [];
-
-            const parse = parseIn2(parseIn(input));
-            const pos = Math.min(cursorStart, cursorEnd);
-
-            let matchIndex = -1;
-            let matchParseItem: ShInputItem2 | undefined = undefined;
-            const matchParseList = parse; // todo 处理嵌套
-
-            for (const [i, item] of parse.entries()) {
-                if (item.start <= pos && item.end >= pos) {
-                    matchIndex = i;
-                    matchParseItem = item;
-                    if (item.type !== "blank") break;
-                }
-            }
-
-            if (matchIndex === -1 || !matchParseItem) {
-                console.log(input, parse, pos);
-                throw new Error("No matching parse item found");
-            }
-
-            const curPosStart = matchParseItem.type === "blank" ? matchParseItem.end : matchParseItem.start;
-            const curPosEnd = matchParseItem.end;
-            const pre = input.slice(0, curPosStart);
-            const last = input.slice(curPosEnd);
-            const cur = input.slice(curPosStart, curPosEnd);
-            const curValue = matchParseItem.value;
-
-            console.log({ pre, cur, curValue, last, matchParseItem, parse });
-
-            if (matchParseItem.type === "main" || !matchParseList.find((i) => i.type === "main")) {
-                if (curValue) {
-                    if (curValue.startsWith(".") || path.isAbsolute(curValue)) {
-                        // is path
-                        const { basePath, focusPart, p } = pathMatchCursor(
-                            curValue,
-                            cursorStart - curPosStart,
-                            this.cwd,
-                        );
-                        const [dir] = tryX(() => fs.readdirSync(p)); // todo 如果是文件呢
-                        for (const file of dir ?? []) {
-                            if (!file.startsWith(focusPart)) continue; // todo 模糊
-                            const nFile = file.replaceAll(" ", "\\ ").replaceAll("'", "\\'").replaceAll('"', '\\"');
-                            const [stat] = tryX(() => fs.statSync(path.join(p, file)));
-                            const nPath = curValue ? path.join(basePath, nFile) : nFile;
-                            if (!stat) {
-                                res.push({ show: file, x: nPath, des: "error" });
-                            } else if (stat.isDirectory()) {
-                                res.push({ show: file, x: nPath + path.sep, des: "dir" });
-                            } else {
-                                if (isexeSync(path.join(p, file), { ignoreErrors: true })) {
-                                    res.push({ show: file, x: nPath, des: "file" });
-                                }
-                            }
-                        }
-                    }
-                }
-                const l = this.allCommands();
-                for (const cmd of l) {
-                    if (cmd.startsWith(cur)) {
-                        res.push({ x: cmd, des: "" });
-                    }
-                }
-            } else {
-                // is path
-                if (
-                    !matchParseItem.input.endsWith(path.sep) &&
-                    matchParseItem.type === "arg" &&
-                    !matchParseItem.chindren
-                ) {
-                    const [stat] = tryX(() => fs.statSync(path.isAbsolute(cur) ? cur : path.join(this.cwd, cur)));
-                    if (stat?.isDirectory()) return { list: [{ x: `${cur}${path.sep}`, des: "" }], pre, last };
-                }
-                const { basePath, focusPart, p } = pathMatchCursor(cur, cursorStart - curPosStart, this.cwd);
-                const [dir] = tryX(() => fs.readdirSync(p));
-                for (const file of dir ?? []) {
-                    if (!file.startsWith(focusPart)) continue; // todo 模糊
-                    const nFile = file.replaceAll(" ", "\\ ").replaceAll("'", "\\'").replaceAll('"', '\\"');
-                    const [stat] = tryX(() => fs.statSync(path.join(p, file)));
-                    const nPath = cur ? path.join(basePath, nFile) : nFile;
-                    if (!stat) {
-                        res.push({ show: file, x: nPath, des: "error" });
-                    } else if (stat.isDirectory()) {
-                        res.push({ show: file, x: nPath, des: "dir" });
-                    } else {
-                        res.push({ show: file, x: nPath, des: "file" });
-                    }
-                }
-            }
-            return { list: res.slice(0, 500), pre, last };
-        };
-
         const getInputStyle = (input: string) => {
             const parse = parseIn2(parseIn(input));
             console.log("input", parse);
@@ -381,9 +276,16 @@ class Page {
             if (e.key === "Tab") {
                 e.preventDefault();
                 tipX = getTip(
-                    this.inputCommandEl.gv,
+                    parseIn2(parseIn(this.inputCommandEl.gv)), // todo 解析缓存
                     this.inputCommandEl.el.selectionStart || 0,
                     this.inputCommandEl.el.selectionEnd || 0,
+                    {
+                        cwd: this.cwd,
+                        allCommands: () => Array.from(this.allCommands()),
+                        readDirSync: (p: string) => fs.readdirSync(p),
+                        statSync: (p: string) => tryX(() => fs.statSync(p))[0] || null,
+                        isExeSync: (p: string) => isexeSync(p, { ignoreErrors: true }),
+                    },
                 );
                 const { list, pre, last } = tipX;
                 if (list.length === 0) {
