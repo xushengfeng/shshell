@@ -1,4 +1,4 @@
-import { txt, view, pack, input } from "dkh-ui";
+import { txt, view, pack, input, addClass } from "dkh-ui";
 import { wcswidth } from "simple-wcswidth";
 import { key2seq, parseOut, type ShOutputItem, type ShOutputItemText } from "./parser_out";
 
@@ -11,6 +11,16 @@ type ZuoBiao = {
     x: number; // infinite horizontal
     y: number;
 };
+
+const girdItemClass = addClass(
+    {
+        whiteSpace: "pre-wrap",
+        display: "inline-block",
+        height: "2ch",
+        lineHeight: "2ch",
+    },
+    {},
+);
 
 export class Render {
     el = view();
@@ -127,7 +137,11 @@ export class Render {
         const { chars: line, el: lel } = this.renderedLines[y];
         function set(el: HTMLElement, _char: string, i: number) {
             const w = _char === char ? width : wcswidth(_char);
-            pack(el).style({ whiteSpace: "pre-wrap", display: "inline-block", width: w === 2 ? "2ch" : "1ch" });
+            pack(el)
+                .style({
+                    width: w === 2 ? "2ch" : "1ch",
+                })
+                .class(girdItemClass);
             const has = line[i];
             if (has) {
                 if ("el" in has) {
@@ -175,7 +189,7 @@ export class Render {
         return { width };
     }
     private rNewLine() {
-        const line = view().style({ minHeight: "1lh", lineBreak: "anywhere" });
+        const line = view().style({ minHeight: "2ch", lineBreak: "anywhere" });
         this.mainEl.add(line);
         this.renderedLines.push({ chars: [], el: line.el });
     }
