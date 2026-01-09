@@ -199,9 +199,7 @@ function parseTokens(tokens: ShInputItem[]): ShInputItem[] {
                 }
 
                 // 如果还没找到匹配的右括号，收集内容
-                if (depth > 0) {
-                    contentTokens.push(current);
-                }
+                contentTokens.push(current);
                 j++;
             }
             // 自动闭合
@@ -216,7 +214,6 @@ function parseTokens(tokens: ShInputItem[]): ShInputItem[] {
             const rightParen = tokens.at(rightParenIndex);
 
             const innerInput = contentTokens.map((t) => t.input).join("");
-            const innerValue = contentTokens.map((t) => t.value).join("");
 
             const fullInput = leftParen.input + innerInput + (rightParen?.input ?? "");
             const children = [leftParen, ...innerChildren].concat(rightParen ? [rightParen] : []);
@@ -224,7 +221,7 @@ function parseTokens(tokens: ShInputItem[]): ShInputItem[] {
             const parentItem: ShInputItem = {
                 type: "sub",
                 input: fullInput,
-                value: innerValue,
+                value: "",
                 start: leftParen.start,
                 end: rightParen?.end ?? innerChildren.at(-1)?.end ?? leftParen.end,
                 chindren: children,
@@ -251,38 +248,26 @@ export function parseIn(command: string): ShInputItem[] {
 // todo 分号分割
 // todo && || 等等控制符分割
 
-// todo 需要测试
 export function parseIn2(p: ShInputItem[]): ShInputItem2[] {
     const result: ShInputItem2[] = [];
     let isMainMatched = false;
     for (const item of p) {
         if (item.type === "blank" || item.type === "ignore") {
             result.push({
+                ...item,
                 type: item.type,
-                input: item.input,
-                value: item.value,
-                start: item.start,
-                end: item.end,
             });
         } else if (item.type === "item") {
             if (!isMainMatched) {
                 result.push({
+                    ...item,
                     type: "main",
-                    input: item.input,
-                    value: item.value,
-                    start: item.start,
-                    end: item.end,
-                    protected: item.protected,
                 });
                 isMainMatched = true;
             } else {
                 result.push({
+                    ...item,
                     type: "arg",
-                    input: item.input,
-                    value: item.value,
-                    start: item.start,
-                    end: item.end,
-                    protected: item.protected,
                 });
             }
         } else if (item.type === "sub") {
@@ -294,13 +279,10 @@ export function parseIn2(p: ShInputItem[]): ShInputItem2[] {
                 end: item.end,
                 chindren: parseIn2(item.chindren),
             });
-        } else if (item.type === "()") {
+        } else {
             result.push({
+                ...item,
                 type: "other",
-                input: item.input,
-                value: item.value,
-                start: item.start,
-                end: item.end,
             });
         }
     }

@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { parseIn, parseInFlat, type ShInputItem } from "../parser_in";
+import { parseIn, parseIn2, parseInFlat, type ShInputItem2, type ShInputItem } from "../parser_in";
 
 describe("基本语句", () => {
     // --- 边界条件和空值/空白处理 ---
@@ -433,7 +433,7 @@ describe("括号处理", () => {
                 {
                     type: "sub",
                     input: "(Hello World)",
-                    value: "Hello World",
+                    value: "",
                     start: 5,
                     end: 18,
                     chindren: [
@@ -455,7 +455,7 @@ describe("括号处理", () => {
                 {
                     type: "sub",
                     input: "((Hello World))",
-                    value: "(Hello World)",
+                    value: "",
                     start: 5,
                     end: 20,
                     chindren: [
@@ -463,7 +463,7 @@ describe("括号处理", () => {
                         {
                             type: "sub",
                             input: "(Hello World)",
-                            value: "Hello World",
+                            value: "",
                             start: 6,
                             end: 19,
                             chindren: [
@@ -488,7 +488,7 @@ describe("括号处理", () => {
                 {
                     type: "sub",
                     input: "(Hello (Nested) World",
-                    value: "Hello (Nested) World",
+                    value: "",
                     start: 5,
                     end: 26,
                     chindren: [
@@ -498,7 +498,7 @@ describe("括号处理", () => {
                         {
                             type: "sub",
                             input: "(Nested)",
-                            value: "Nested",
+                            value: "",
                             start: 12,
                             end: 20,
                             chindren: [
@@ -533,5 +533,99 @@ describe("括号处理", () => {
             ];
             expect(parseIn(input)).toEqual(expected);
         });
+        it("空且不完整", () => {
+            const input = "echo (";
+            const expected: ShInputItem[] = [
+                { type: "item", input: "echo", value: "echo", start: 0, end: 4 },
+                { type: "blank", input: " ", value: " ", start: 4, end: 5 },
+                {
+                    type: "sub",
+                    input: "(",
+                    value: "",
+                    start: 5,
+                    end: 6,
+                    chindren: [{ type: "()", input: "(", value: "(", start: 5, end: 6 }],
+                },
+            ];
+            expect(parseIn(input)).toEqual(expected);
+        });
+        it("空且不完整2", () => {
+            const input = "echo )";
+            const expected: ShInputItem[] = [
+                { type: "item", input: "echo", value: "echo", start: 0, end: 4 },
+                { type: "blank", input: " ", value: " ", start: 4, end: 5 },
+                { type: "()", input: ")", value: ")", start: 5, end: 6 },
+            ];
+            expect(parseIn(input)).toEqual(expected);
+        });
+        it("内容转义", () => {
+            const input = `echo (a "b c" d)`;
+            const expected: ShInputItem[] = [
+                { type: "item", input: "echo", value: "echo", start: 0, end: 4 },
+                { type: "blank", input: " ", value: " ", start: 4, end: 5 },
+                {
+                    type: "sub",
+                    input: `(a "b c" d)`,
+                    value: "", // 空
+                    start: 5,
+                    end: 16,
+                    chindren: [
+                        { type: "()", input: "(", value: "(", start: 5, end: 6 },
+                        { type: "item", input: "a", value: "a", start: 6, end: 7 },
+                        { type: "blank", input: " ", value: " ", start: 7, end: 8 },
+                        { type: "item", input: `"b c"`, value: "b c", start: 8, end: 13, protected: true },
+                        { type: "blank", input: " ", value: " ", start: 13, end: 14 },
+                        { type: "item", input: "d", value: "d", start: 14, end: 15 },
+                        { type: "()", input: ")", value: ")", start: 15, end: 16 },
+                    ],
+                },
+            ];
+            expect(parseIn(input)).toEqual(expected);
+        });
+    });
+});
+
+describe("语义", () => {
+    const parse = (p: string) => parseIn2(parseIn(p));
+    it("综合", () => {
+        const input = `  cmd1 arg1 'arg 2' (subcmd1 "sub arg1" (subsubcmd))  # comment`;
+        expect(parse(input)).toEqual([
+            { type: "blank", input: "  ", value: "  ", start: 0, end: 2 },
+            { type: "main", input: "cmd1", value: "cmd1", start: 2, end: 6 },
+            { type: "blank", input: " ", value: " ", start: 6, end: 7 },
+            { type: "arg", input: "arg1", value: "arg1", start: 7, end: 11 },
+            { type: "blank", input: " ", value: " ", start: 11, end: 12 },
+            { type: "arg", input: "'arg 2'", value: "arg 2", start: 12, end: 19, protected: true },
+            { type: "blank", input: " ", value: " ", start: 19, end: 20 },
+            {
+                type: "arg",
+                input: '(subcmd1 "sub arg1" (subsubcmd))',
+                value: "",
+                start: 20,
+                end: 52,
+                chindren: [
+                    { type: "other", input: "(", value: "(", start: 20, end: 21 },
+                    { type: "main", input: "subcmd1", value: "subcmd1", start: 21, end: 28 },
+                    { type: "blank", input: " ", value: " ", start: 28, end: 29 },
+                    { type: "arg", input: '"sub arg1"', value: "sub arg1", start: 29, end: 39, protected: true },
+                    { type: "blank", input: " ", value: " ", start: 39, end: 40 },
+                    {
+                        type: "arg",
+                        input: "(subsubcmd)",
+                        value: "",
+                        start: 40,
+                        end: 51,
+                        chindren: [
+                            { type: "other", input: "(", value: "(", start: 40, end: 41 },
+                            { type: "main", input: "subsubcmd", value: "subsubcmd", start: 41, end: 50 },
+                            { type: "other", input: ")", value: ")", start: 50, end: 51 },
+                        ],
+                    },
+                    { type: "other", input: ")", value: ")", start: 51, end: 52 },
+                ],
+            },
+            { type: "blank", input: "  ", value: "  ", start: 52, end: 54 },
+            { type: "ignore", input: "# comment", value: "", start: 54, end: 63 },
+        ] satisfies ShInputItem2[]);
     });
 });
