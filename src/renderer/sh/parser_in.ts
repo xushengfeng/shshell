@@ -288,3 +288,10 @@ export function parseIn2(p: ShInputItem[]): ShInputItem2[] {
     }
     return result;
 }
+
+export function unParseItemValue(value: string, t: `'` | `"` | "" | undefined) {
+    if (t === `'` || t === `"`) {
+        return t + value.replaceAll(t, `\\${t}`) + t;
+    }
+    return value.replaceAll(" ", "\\ ").replaceAll("'", "\\'").replaceAll('"', '\\"'); // todo
+}

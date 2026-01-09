@@ -249,15 +249,27 @@ describe("仅路径补全，基本命令补全", () => {
     describe("空", () => {
         it("空", () => {
             const res = getTip(parse(""), 0, 0, sysObj);
-            expect(res).toEqual({ list: sysObj.allCommands().map((x) => ({ x, des: "" })), pre: "", last: "" });
+            expect(res).toEqual({
+                list: sysObj.allCommands().map((x) => ({ x, des: "", show: x })),
+                pre: "",
+                last: "",
+            });
         });
         it("空2", () => {
             const res = getTip(parse(" "), 1, 1, sysObj);
-            expect(res).toEqual({ list: sysObj.allCommands().map((x) => ({ x, des: "" })), pre: " ", last: "" });
+            expect(res).toEqual({
+                list: sysObj.allCommands().map((x) => ({ x, des: "", show: x })),
+                pre: " ",
+                last: "",
+            });
         });
         it("空3", () => {
             const res = getTip(parse(" "), 0, 0, sysObj);
-            expect(res).toEqual({ list: sysObj.allCommands().map((x) => ({ x, des: "" })), pre: "", last: " " });
+            expect(res).toEqual({
+                list: sysObj.allCommands().map((x) => ({ x, des: "", show: x })),
+                pre: "",
+                last: " ",
+            });
         });
     });
     describe("命令补全", () => {
@@ -265,8 +277,8 @@ describe("仅路径补全，基本命令补全", () => {
             const res = getTip(parse("c"), 1, 1, sysObj);
             expect(res).toEqual({
                 list: [
-                    { x: "cat", des: "" },
-                    { x: "cd", des: "" },
+                    { x: "cat", show: "cat", des: "" },
+                    { x: "cd", show: "cd", des: "" },
                 ],
                 pre: "",
                 last: "",
@@ -276,8 +288,8 @@ describe("仅路径补全，基本命令补全", () => {
             const res = getTip(parse("e"), 0, 0, sysObj);
             expect(res).toEqual({
                 list: [
-                    { x: "echo", des: "" },
-                    { x: "exit", des: "" },
+                    { x: "echo", show: "echo", des: "" },
+                    { x: "exit", show: "exit", des: "" },
                 ],
                 pre: "",
                 last: "",
@@ -337,7 +349,7 @@ describe("仅路径补全，基本命令补全", () => {
             it("目录补全带斜杠", () => {
                 const res = getTip(parse("cd downloads"), 12, 12, sysObj);
                 expect(res).toEqual({
-                    list: [{ x: "downloads/", des: "" }],
+                    list: [{ x: "downloads/", show: "downloads/", des: "" }],
                     pre: "cd ",
                     last: "",
                 });
@@ -391,7 +403,7 @@ describe("仅路径补全，基本命令补全", () => {
             it("点点点相对2", () => {
                 const res = getTip(parse("cd ../.."), 8, 8, sysObj);
                 expect(res).toEqual({
-                    list: [{ x: "../../", des: "" }],
+                    list: [{ x: "../../", show: "../../", des: "" }],
                     pre: "cd ",
                     last: "",
                 });
@@ -408,7 +420,7 @@ describe("仅路径补全，基本命令补全", () => {
                 const res = getTip(parse("cat ."), 5, 5, sysObj);
                 expect(res).toEqual({
                     list: [
-                        { x: "./", des: "" },
+                        { x: "./", show: "./", des: "" },
                         { x: ".bashrc", show: ".bashrc", des: "file" },
                     ],
                     pre: "cat ",
@@ -442,7 +454,7 @@ describe("仅路径补全，基本命令补全", () => {
                 it("/补全", () => {
                     const res = getTip(parse('cd "/home'), 9, 9, sysObj);
                     expect(res).toEqual({
-                        list: [{ x: '"/home/"', des: "", cursorOffset: -1 }],
+                        list: [{ x: '"/home/"', show: "/home/", des: "", cursorOffset: -1 }],
                         pre: "cd ",
                         last: "",
                     });
@@ -450,7 +462,7 @@ describe("仅路径补全，基本命令补全", () => {
                 it("/补全2", () => {
                     const res = getTip(parse('cd "/home"'), 9, 9, sysObj);
                     expect(res).toEqual({
-                        list: [{ x: '"/home/"', des: "", cursorOffset: -1 }],
+                        list: [{ x: '"/home/"', show: "/home/", des: "", cursorOffset: -1 }],
                         pre: "cd ",
                         last: "",
                     });

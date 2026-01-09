@@ -1,10 +1,11 @@
 import { tryX } from "../try";
-import type { ShInputItem2 } from "./parser_in";
+import { unParseItemValue, type ShInputItem2 } from "./parser_in";
 import { pathMatchCursor } from "./path_match_cursor";
 
 const path = require("node:path") as typeof import("node:path");
 
-export type InputTip = { show?: string; x: string; des: string; cursorOffset?: number }[];
+type InputTipItem = { show: string; x: string; des: string; cursorOffset?: number };
+export type InputTip = InputTipItem[];
 
 export function matchItem(parse: ShInputItem2[], cursorPos: number) {
     // 表示层级，方便处理嵌套
@@ -48,7 +49,7 @@ export function getTip(
         isExeSync: (p: string) => boolean;
     },
 ): { list: InputTip; pre: string; last: string } {
-    const res: InputTip = [];
+    const res: (Omit<InputTipItem, "show"> & { show?: string })[] = [];
 
     const input = parse.map((i) => i.input).join("");
     const cursorStart = Math.min(_cursorStart, input.length);
@@ -81,7 +82,7 @@ export function getTip(
         offset: number,
         map: (file: string, path: string, content: InputTip[0]) => InputTip,
     ) {
-        const yinhao = raw.startsWith('"') || raw.startsWith("'") ? raw[0] : "";
+        const yinhao = (raw.startsWith('"') || raw.startsWith("'") ? raw[0] : "") as `"` | `'` | "";
         if (
             !matchParseItem.input.endsWith(path.sep) &&
             ((matchParseItem.type === "arg" && !matchParseItem.chindren) || matchParseItem.type === "main")
@@ -91,20 +92,11 @@ export function getTip(
                 const stat = sys.statSync(path.isAbsolute(curValue) ? curValue : path.join(sys.cwd, curValue));
                 if (curValue && stat?.isDirectory()) {
                     // 下面的应该只有一个，会默认推上去
-                    if (yinhao) {
-                        res.push({ x: `${yinhao}${curValue}${path.sep}${yinhao}`, des: "", cursorOffset: -1 });
-                    } else res.push({ x: `${curValue}${path.sep}`, des: "" });
+                    res.push({ x: `${curValue}${path.sep}`, des: "" });
                     return;
                 }
             } else {
-                if (yinhao) {
-                    res.push({
-                        x: `${yinhao}${curValue}${path.sep}${yinhao}`,
-                        show: `${curValue}${path.sep}`,
-                        des: "",
-                        cursorOffset: -1,
-                    });
-                } else res.push({ x: `${curValue}${path.sep}`, des: "" });
+                res.push({ x: `${curValue}${path.sep}`, des: "" });
             }
         }
         const { basePath, focusPart } = pathMatchCursor(curValue, offset - yinhao.length);
@@ -116,17 +108,12 @@ export function getTip(
         const [dir] = tryX(() => sys.readDirSync(p));
         for (const file of dir ?? []) {
             if (!file.startsWith(focusPart)) continue; // todo 模糊
-            const nFile = yinhao
-                ? file.replaceAll(yinhao, `\\${yinhao}`)
-                : file.replaceAll(" ", "\\ ").replaceAll("'", "\\'").replaceAll('"', '\\"'); // todo 转义
-            const nPath = curValue ? basePath + nFile : nFile;
-            const nnPath = yinhao ? `${yinhao}${nPath}${yinhao}` : nPath;
+            const nPath = curValue ? basePath + file : file;
             res.push(
                 ...map(file, path.join(p, file), {
                     show: file,
-                    x: nnPath,
+                    x: nPath,
                     des: "",
-                    ...(yinhao ? { cursorOffset: -1 } : {}),
                 }),
             );
         }
@@ -144,8 +131,7 @@ export function getTip(
                         return [{ ...c, des: "dir" }];
                     }
                     if (sys.isExeSync(path.join(p))) {
-                        const { cursorOffset: _, ...rest } = c;
-                        return [{ ...rest, des: "file" }];
+                        return [{ ...c, des: "file" }];
                     }
                     return [];
                 });
@@ -167,11 +153,24 @@ export function getTip(
                 return [{ ...c, des: "dir" }];
             }
             if (p) {
-                const { cursorOffset: _, ...rest } = c;
-                return [{ ...rest, des: "file" }];
+                return [{ ...c, des: "file" }];
             }
             return [];
         });
     }
-    return { list: res.slice(0, 500), pre, last };
+    const yinhao = (cur.startsWith('"') || cur.startsWith("'") ? cur[0] : "") as `"` | `'` | "";
+    return {
+        list: res.slice(0, 500).map((i) => {
+            const ni = { show: "", ...i };
+            if (i.show === undefined) ni.show = ni.x;
+            ni.x = unParseItemValue(ni.x, yinhao);
+            // todo 应该有其他标记
+            if (ni.des !== "file" && yinhao) {
+                ni.cursorOffset = -1;
+            }
+            return ni;
+        }),
+        pre,
+        last,
+    };
 }
