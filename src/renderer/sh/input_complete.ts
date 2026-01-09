@@ -89,7 +89,7 @@ export function getTip(
             // 点文件特殊处理
             if (curValue.split(path.sep).at(-1) !== ".") {
                 const stat = sys.statSync(path.isAbsolute(curValue) ? curValue : path.join(sys.cwd, curValue));
-                if (stat?.isDirectory()) {
+                if (curValue && stat?.isDirectory()) {
                     if (yinhao) {
                         res.push({ x: `${yinhao}${curValue}${path.sep}${yinhao}`, des: "", cursorOffset: -1 });
                     } else res.push({ x: `${curValue}${path.sep}`, des: "" });

@@ -426,6 +426,19 @@ describe("仅路径补全，基本命令补全", () => {
                         last: "",
                     });
                 });
+                it("常规2", () => {
+                    const res = getTip(parse('cd "'), 11, 11, sysObj);
+                    expect(res).toEqual({
+                        list: [
+                            { x: '"documents"', show: "documents", des: "dir", cursorOffset: -1 },
+                            { x: '"downloads"', show: "downloads", des: "dir", cursorOffset: -1 },
+                            { x: '".bashrc"', show: ".bashrc", des: "file" },
+                            { x: '"profile"', show: "profile", des: "file" },
+                        ],
+                        pre: "cd ",
+                        last: "",
+                    });
+                });
                 it("/补全", () => {
                     const res = getTip(parse('cd "/home'), 9, 9, sysObj);
                     expect(res).toEqual({
