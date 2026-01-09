@@ -459,7 +459,7 @@ describe("仅路径补全，基本命令补全", () => {
                     const res = getTip(parse('cd ".'), 9, 9, sysObj);
                     expect(res).toEqual({
                         list: [
-                            { x: '"./"', des: "", cursorOffset: -1 },
+                            { x: '"./"', des: "", show: "./", cursorOffset: -1 },
                             {
                                 des: "file",
                                 show: ".bashrc",

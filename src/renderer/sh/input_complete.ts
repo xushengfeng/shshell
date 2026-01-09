@@ -90,6 +90,7 @@ export function getTip(
             if (curValue.split(path.sep).at(-1) !== ".") {
                 const stat = sys.statSync(path.isAbsolute(curValue) ? curValue : path.join(sys.cwd, curValue));
                 if (curValue && stat?.isDirectory()) {
+                    // 下面的应该只有一个，会默认推上去
                     if (yinhao) {
                         res.push({ x: `${yinhao}${curValue}${path.sep}${yinhao}`, des: "", cursorOffset: -1 });
                     } else res.push({ x: `${curValue}${path.sep}`, des: "" });
@@ -97,7 +98,12 @@ export function getTip(
                 }
             } else {
                 if (yinhao) {
-                    res.push({ x: `${yinhao}${curValue}${path.sep}${yinhao}`, des: "", cursorOffset: -1 });
+                    res.push({
+                        x: `${yinhao}${curValue}${path.sep}${yinhao}`,
+                        show: `${curValue}${path.sep}`,
+                        des: "",
+                        cursorOffset: -1,
+                    });
                 } else res.push({ x: `${curValue}${path.sep}`, des: "" });
             }
         }
