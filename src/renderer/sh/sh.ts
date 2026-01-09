@@ -277,10 +277,37 @@ class Page {
             const pre = input.slice(0, curPosStart);
             const last = input.slice(curPosEnd);
             const cur = input.slice(curPosStart, curPosEnd);
+            const curValue = matchParseItem.value;
 
-            console.log({ pre, cur, last, matchParseItem, parse });
+            console.log({ pre, cur, curValue, last, matchParseItem, parse });
 
             if (matchParseItem.type === "main" || !matchParseList.find((i) => i.type === "main")) {
+                if (curValue) {
+                    if (curValue.startsWith(".") || path.isAbsolute(curValue)) {
+                        // is path
+                        const { basePath, focusPart, p } = pathMatchCursor(
+                            curValue,
+                            cursorStart - curPosStart,
+                            this.cwd,
+                        );
+                        const [dir] = tryX(() => fs.readdirSync(p)); // todo 如果是文件呢
+                        for (const file of dir ?? []) {
+                            if (!file.startsWith(focusPart)) continue; // todo 模糊
+                            const nFile = file.replaceAll(" ", "\\ ").replaceAll("'", "\\'").replaceAll('"', '\\"');
+                            const [stat] = tryX(() => fs.statSync(path.join(p, file)));
+                            const nPath = curValue ? path.join(basePath, nFile) : nFile;
+                            if (!stat) {
+                                res.push({ show: file, x: nPath, des: "error" });
+                            } else if (stat.isDirectory()) {
+                                res.push({ show: file, x: nPath + path.sep, des: "dir" });
+                            } else {
+                                if (isexeSync(path.join(p, file), { ignoreErrors: true })) {
+                                    res.push({ show: file, x: nPath, des: "file" });
+                                }
+                            }
+                        }
+                    }
+                }
                 const l = this.allCommands();
                 for (const cmd of l) {
                     if (cmd.startsWith(cur)) {
@@ -511,7 +538,8 @@ class Page {
             if (!this.allCommands().has(com[0])) {
                 let canRun = false;
                 if (path.isAbsolute(com[0]) || com[0].startsWith("./") || com[0].startsWith("../")) {
-                    const s = isexeSync(path.join(this.cwd, com[0]), { ignoreErrors: true });
+                    const pathx = path.isAbsolute(com[0]) ? com[0] : path.join(this.cwd, com[0]);
+                    const s = isexeSync(pathx, { ignoreErrors: true });
                     if (s) canRun = true;
                 }
                 if (!canRun) {
