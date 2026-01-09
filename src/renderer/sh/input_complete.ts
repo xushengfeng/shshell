@@ -90,7 +90,7 @@ export function getTip(
                     if (!file.startsWith(focusPart)) continue; // todo 模糊
                     const nFile = file.replaceAll(" ", "\\ ").replaceAll("'", "\\'").replaceAll('"', '\\"');
                     const stat = sys.statSync(path.join(p, file));
-                    const nPath = curValue ? path.join(basePath, nFile) : nFile;
+                    const nPath = curValue ? basePath + nFile : nFile;
                     if (!stat) {
                         res.push({ show: file, x: nPath, des: "error" });
                     } else if (stat.isDirectory()) {
@@ -121,7 +121,7 @@ export function getTip(
             if (!file.startsWith(focusPart)) continue; // todo 模糊
             const nFile = file.replaceAll(" ", "\\ ").replaceAll("'", "\\'").replaceAll('"', '\\"');
             const stat = sys.statSync(path.join(p, file));
-            const nPath = cur ? path.join(basePath, nFile) : nFile;
+            const nPath = cur ? basePath + nFile : nFile;
             if (!stat) {
                 res.push({ show: file, x: nPath, des: "error" });
             } else if (stat.isDirectory()) {
