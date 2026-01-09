@@ -75,28 +75,54 @@ export function getTip(
     const curValue = matchParseItem.value;
 
     console.log({ pre, cur, curValue, last, matchParseItem, parse });
+    function fillPath(
+        curValue: string,
+        raw: string,
+        offset: number,
+        map: (file: string, path: string, content: InputTip[0]) => InputTip,
+    ) {
+        const yinhao = raw.startsWith('"') || raw.startsWith("'") ? raw[0] : "";
+        if (
+            !matchParseItem.input.endsWith(path.sep) &&
+            ((matchParseItem.type === "arg" && !matchParseItem.chindren) || matchParseItem.type === "main")
+        ) {
+            const stat = sys.statSync(path.isAbsolute(curValue) ? curValue : path.join(sys.cwd, curValue));
+            if (stat?.isDirectory()) {
+                if (yinhao) {
+                    res.push({ x: `${yinhao}${curValue}${path.sep}${yinhao}`, des: "" });
+                } else res.push({ x: `${curValue}${path.sep}`, des: "" });
+                return;
+            }
+        }
+        const { basePath, focusPart, p } = pathMatchCursor(curValue, offset - yinhao.length, sys.cwd);
+        const [dir] = tryX(() => sys.readDirSync(p));
+        for (const file of dir ?? []) {
+            if (!file.startsWith(focusPart)) continue; // todo 模糊
+            const nFile = yinhao
+                ? file.replaceAll(yinhao, `\\${yinhao}`)
+                : file.replaceAll(" ", "\\ ").replaceAll("'", "\\'").replaceAll('"', '\\"'); // todo 转义
+            const nPath = curValue ? basePath + nFile : nFile;
+            const nnPath = yinhao ? `${yinhao}${nPath}${yinhao}` : nPath;
+            res.push(...map(file, path.join(p, file), { show: file, x: nnPath, des: "" }));
+        }
+    }
 
     if (matchParseItem.type === "main" || !matchParseListRaw.find((i) => i.type === "main")) {
         if (curValue) {
             if (curValue.startsWith(".") || path.isAbsolute(curValue)) {
-                // is path
-                const { basePath, focusPart, p } = pathMatchCursor(curValue, cursorStart - curPosStart, sys.cwd);
-                const [dir] = tryX(() => sys.readDirSync(p)); // todo 如果是文件呢
-                for (const file of dir ?? []) {
-                    if (!file.startsWith(focusPart)) continue; // todo 模糊
-                    const nFile = file.replaceAll(" ", "\\ ").replaceAll("'", "\\'").replaceAll('"', '\\"');
-                    const stat = sys.statSync(path.join(p, file));
-                    const nPath = curValue ? basePath + nFile : nFile;
+                fillPath(curValue, matchParseItem.input, cursorStart - curPosStart, (_, p, c) => {
+                    const stat = sys.statSync(path.join(p));
                     if (!stat) {
-                        res.push({ show: file, x: nPath, des: "error" });
-                    } else if (stat.isDirectory()) {
-                        res.push({ show: file, x: nPath, des: "dir" });
-                    } else {
-                        if (sys.isExeSync(path.join(p, file))) {
-                            res.push({ show: file, x: nPath, des: "file" });
-                        }
+                        return [{ show: c.show, x: c.x, des: "error" }];
                     }
-                }
+                    if (stat.isDirectory()) {
+                        return [{ show: c.show, x: c.x, des: "dir" }];
+                    }
+                    if (sys.isExeSync(path.join(p))) {
+                        return [{ show: c.show, x: c.x, des: "file" }];
+                    }
+                    return [];
+                });
             }
         }
         const l = sys.allCommands();
@@ -106,26 +132,19 @@ export function getTip(
             }
         }
     } else {
-        // is path
-        if (!matchParseItem.input.endsWith(path.sep) && matchParseItem.type === "arg" && !matchParseItem.chindren) {
-            const stat = sys.statSync(path.isAbsolute(cur) ? cur : path.join(sys.cwd, cur));
-            if (stat?.isDirectory()) return { list: [{ x: `${cur}${path.sep}`, des: "" }], pre, last };
-        }
-        const { basePath, focusPart, p } = pathMatchCursor(cur, cursorStart - curPosStart, sys.cwd);
-        const [dir] = tryX(() => sys.readDirSync(p));
-        for (const file of dir ?? []) {
-            if (!file.startsWith(focusPart)) continue; // todo 模糊
-            const nFile = file.replaceAll(" ", "\\ ").replaceAll("'", "\\'").replaceAll('"', '\\"');
-            const stat = sys.statSync(path.join(p, file));
-            const nPath = cur ? basePath + nFile : nFile;
+        fillPath(curValue, matchParseItem.input, cursorStart - curPosStart, (_, p, c) => {
+            const stat = sys.statSync(p);
             if (!stat) {
-                res.push({ show: file, x: nPath, des: "error" });
-            } else if (stat.isDirectory()) {
-                res.push({ show: file, x: nPath, des: "dir" });
-            } else {
-                res.push({ show: file, x: nPath, des: "file" });
+                return [{ show: c.show, x: c.x, des: "error" }];
             }
-        }
+            if (stat.isDirectory()) {
+                return [{ show: c.show, x: c.x, des: "dir" }];
+            }
+            if (p) {
+                return [{ show: c.show, x: c.x, des: "file" }];
+            }
+            return [];
+        });
     }
     return { list: res.slice(0, 500), pre, last };
 }

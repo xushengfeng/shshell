@@ -317,9 +317,23 @@ describe("仅路径补全，基本命令补全", () => {
                 last: "",
             });
         });
+        // todo /补充
     });
     describe("路径补全", () => {
         describe("默认", () => {
+            it("空", () => {
+                const res = getTip(parse("cd "), 3, 3, sysObj);
+                expect(res).toEqual({
+                    list: [
+                        { x: "documents", show: "documents", des: "dir" },
+                        { x: "downloads", show: "downloads", des: "dir" },
+                        { x: ".bashrc", show: ".bashrc", des: "file" },
+                        { x: "profile", show: "profile", des: "file" },
+                    ],
+                    pre: "cd ",
+                    last: "",
+                });
+            });
             it("目录补全带斜杠", () => {
                 const res = getTip(parse("cd downloads"), 12, 12, sysObj);
                 expect(res).toEqual({
@@ -393,6 +407,7 @@ describe("仅路径补全，基本命令补全", () => {
                 });
             });
             it("其他转义", () => {
+                // todo 更多转义测试
                 const res = getTip(parse("cat documents/read"), 18, 18, sysObj);
                 expect(res).toEqual({
                     list: [{ x: "documents/read\\ me.md", show: "read me.md", des: "file" }],
