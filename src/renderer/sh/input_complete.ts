@@ -6,23 +6,18 @@ const path = require("node:path") as typeof import("node:path");
 
 export type InputTip = { show?: string; x: string; des: string }[];
 
-export function matchItem(
-    parse: ShInputItem2[],
-    cursorPos: number,
-): {
-    d: {
-        list: ShInputItem2[];
-    }[];
-} {
+export function matchItem(parse: ShInputItem2[], cursorPos: number) {
     // 表示层级，方便处理嵌套
     // list包括同时接触的所有节点，一般为0，1，2个（2个时为一个item一个blank）
     const d: {
         list: ShInputItem2[];
+        raw: ShInputItem2[];
     }[] = [];
     let nowList: ShInputItem2[] | null = parse;
     while (nowList !== null && nowList.length > 0) {
         let count = 0;
         const matchList: ShInputItem2[] = [];
+        const rawList = nowList;
         for (const item of nowList) {
             // todo 性能优化？
             if (item.start <= cursorPos && item.end >= cursorPos) {
@@ -34,7 +29,7 @@ export function matchItem(
                 if (count >= 2) break;
             }
         }
-        d.push({ list: matchList });
+        d.push({ list: matchList, raw: rawList });
     }
     return { d };
 }
@@ -62,6 +57,7 @@ export function getTip(
 
     const matchList = matchItem(parse, pos).d;
     const matchParseList = matchList.at(-1)?.list ?? [];
+    const matchParseListRaw = matchList.at(-1)?.raw ?? [];
 
     const matchParseItem = matchParseList.find((i) => i.type === "arg" || i.type === "main") ?? {
         type: "blank",
@@ -80,7 +76,7 @@ export function getTip(
 
     console.log({ pre, cur, curValue, last, matchParseItem, parse });
 
-    if (matchParseItem.type === "main" || !matchParseList.find((i) => i.type === "main")) {
+    if (matchParseItem.type === "main" || !matchParseListRaw.find((i) => i.type === "main")) {
         if (curValue) {
             if (curValue.startsWith(".") || path.isAbsolute(curValue)) {
                 // is path

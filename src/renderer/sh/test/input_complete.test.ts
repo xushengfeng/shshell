@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { VirtualLinux } from "./vr_fs/vr_fs";
 import { getTip, matchItem } from "../input_complete";
-import { parseIn, parseIn2 } from "../parser_in";
+import { parseIn, parseIn2, ShInputItem2 } from "../parser_in";
 import { tryX } from "../../try";
 
 const vrfs = new VirtualLinux({
@@ -98,18 +98,20 @@ describe("光标定位", () => {
         expect(matchItem([], 0)).toEqual({ d: [] });
     });
     it("开头", () => {
-        expect(matchItem(parse("echo"), 0)).toEqual({ d: [{ list: [parse("echo")[0]] }] });
+        expect(matchItem(parse("echo"), 0)).toEqual({ d: [{ list: [parse("echo")[0]], raw: parse("echo") }] });
     });
     it("结尾", () => {
-        expect(matchItem(parse("echo"), 4)).toEqual({ d: [{ list: [parse("echo")[0]] }] });
+        expect(matchItem(parse("echo"), 4)).toEqual({ d: [{ list: [parse("echo")[0]], raw: parse("echo") }] });
     });
     it("中间", () => {
-        expect(matchItem(parse("ec ho"), 2)).toEqual({ d: [{ list: parse("ec ho").slice(0, 2) }] });
+        expect(matchItem(parse("ec ho"), 2)).toEqual({
+            d: [{ list: parse("ec ho").slice(0, 2), raw: parse("ec ho") }],
+        });
     });
     it("嵌套", () => {
         expect(matchItem(parse("echo (ab)"), 7)).toEqual({
             d: [
-                { list: parse("echo (ab)").slice(2, 3) },
+                { list: parse("echo (ab)").slice(2, 3), raw: parse("echo (ab)") },
                 {
                     list: [
                         {
@@ -120,6 +122,8 @@ describe("光标定位", () => {
                             end: 8,
                         },
                     ],
+                    // @ts-expect-error
+                    raw: parse("echo (ab)")[2].chindren,
                 },
             ],
         });
@@ -127,7 +131,7 @@ describe("光标定位", () => {
     it("嵌套2", () => {
         expect(matchItem(parse("echo (a)"), 7)).toEqual({
             d: [
-                { list: parse("echo (a)").slice(2, 3) },
+                { list: parse("echo (a)").slice(2, 3), raw: parse("echo (a)") },
                 {
                     list: [
                         {
@@ -139,18 +143,50 @@ describe("光标定位", () => {
                         },
                         { type: "other", input: ")", value: ")", start: 7, end: 8 },
                     ],
+                    // @ts-expect-error
+                    raw: parse("echo (a)")[2].chindren,
                 },
             ],
         });
     });
     it("嵌套3", () => {
         const p = parse("echo ((a))");
+        const r = [
+            { type: "main", input: "echo", value: "echo", start: 0, end: 4 },
+            { type: "blank", input: " ", value: " ", start: 4, end: 5 },
+            {
+                type: "arg",
+                input: "((a))",
+                value: "",
+                start: 5,
+                end: 10,
+                chindren: [
+                    { type: "other", input: "(", value: "(", start: 5, end: 6 },
+                    {
+                        type: "arg",
+                        input: "(a)",
+                        value: "",
+                        start: 6,
+                        end: 9,
+                        chindren: [
+                            { type: "other", input: "(", value: "(", start: 6, end: 7 },
+                            { type: "main", input: "a", value: "a", start: 7, end: 8 },
+                            { type: "other", input: ")", value: ")", start: 8, end: 9 },
+                        ],
+                    },
+                    { type: "other", input: ")", value: ")", start: 9, end: 10 },
+                ],
+            },
+        ] satisfies ShInputItem2[];
         expect(matchItem(p, 5)).toEqual({
-            d: [{ list: [p[1], p[2]] }, { list: [{ type: "other", input: "(", value: "(", start: 5, end: 6 }] }],
+            d: [
+                { list: [p[1], p[2]], raw: r },
+                { list: [{ type: "other", input: "(", value: "(", start: 5, end: 6 }], raw: r[2].chindren },
+            ],
         });
         expect(matchItem(p, 6)).toEqual({
             d: [
-                { list: [p[2]] },
+                { list: [p[2]], raw: r },
                 {
                     list: [
                         { type: "other", input: "(", value: "(", start: 5, end: 6 },
@@ -167,13 +203,18 @@ describe("光标定位", () => {
                             ],
                         },
                     ],
+                    raw: r[2].chindren,
                 },
-                { list: [{ type: "other", input: "(", value: "(", start: 6, end: 7 }] },
+                {
+                    list: [{ type: "other", input: "(", value: "(", start: 6, end: 7 }],
+                    // @ts-expect-error
+                    raw: r[2].chindren[1].chindren,
+                },
             ],
         });
         expect(matchItem(p, 7)).toEqual({
             d: [
-                { list: [p[2]] },
+                { list: [p[2]], raw: r },
                 {
                     list: [
                         {
@@ -189,12 +230,15 @@ describe("光标定位", () => {
                             ],
                         },
                     ],
+                    raw: r[2].chindren,
                 },
                 {
                     list: [
                         { type: "other", input: "(", value: "(", start: 6, end: 7 },
                         { type: "main", input: "a", value: "a", start: 7, end: 8 },
                     ],
+                    // @ts-expect-error
+                    raw: r[2].chindren[1].chindren,
                 },
             ],
         });
