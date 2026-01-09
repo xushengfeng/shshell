@@ -482,6 +482,22 @@ describe("仅路径补全，基本命令补全", () => {
                         last: "",
                     });
                 });
+                it("/补全4", () => {
+                    const res = getTip(parse('cat "/usr/"'), 10, 10, sysObj);
+                    expect(res).toEqual({
+                        list: [
+                            {
+                                des: "dir",
+                                show: "local",
+                                x: '"/usr/local"',
+                                cursorOffset: -1,
+                            },
+                            { x: '"/usr/bin"', des: "dir", show: "bin", cursorOffset: -1 },
+                        ],
+                        pre: "cat ",
+                        last: "",
+                    });
+                });
             });
             it("其他转义", () => {
                 // todo 更多转义测试

@@ -84,7 +84,7 @@ export function getTip(
     ) {
         const yinhao = (raw.startsWith('"') || raw.startsWith("'") ? raw[0] : "") as `"` | `'` | "";
         if (
-            !matchParseItem.input.endsWith(path.sep) &&
+            !curValue.endsWith(path.sep) &&
             ((matchParseItem.type === "arg" && !matchParseItem.chindren) || matchParseItem.type === "main")
         ) {
             // 点文件特殊处理
