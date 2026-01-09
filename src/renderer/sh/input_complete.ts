@@ -86,12 +86,19 @@ export function getTip(
             !matchParseItem.input.endsWith(path.sep) &&
             ((matchParseItem.type === "arg" && !matchParseItem.chindren) || matchParseItem.type === "main")
         ) {
-            const stat = sys.statSync(path.isAbsolute(curValue) ? curValue : path.join(sys.cwd, curValue));
-            if (stat?.isDirectory()) {
+            // 点文件特殊处理
+            if (curValue.split(path.sep).at(-1) !== ".") {
+                const stat = sys.statSync(path.isAbsolute(curValue) ? curValue : path.join(sys.cwd, curValue));
+                if (stat?.isDirectory()) {
+                    if (yinhao) {
+                        res.push({ x: `${yinhao}${curValue}${path.sep}${yinhao}`, des: "" });
+                    } else res.push({ x: `${curValue}${path.sep}`, des: "" });
+                    return;
+                }
+            } else {
                 if (yinhao) {
                     res.push({ x: `${yinhao}${curValue}${path.sep}${yinhao}`, des: "" });
                 } else res.push({ x: `${curValue}${path.sep}`, des: "" });
-                return;
             }
         }
         const { basePath, focusPart, p } = pathMatchCursor(curValue, offset - yinhao.length, sys.cwd);

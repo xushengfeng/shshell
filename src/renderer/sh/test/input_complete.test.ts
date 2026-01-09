@@ -388,10 +388,29 @@ describe("仅路径补全，基本命令补全", () => {
                     last: "",
                 });
             });
+            it("点点点相对2", () => {
+                const res = getTip(parse("cd ../.."), 8, 8, sysObj);
+                expect(res).toEqual({
+                    list: [{ x: "../../", des: "" }],
+                    pre: "cd ",
+                    last: "",
+                });
+            });
             it("点文件", () => {
                 const res = getTip(parse("cat .ba"), 6, 6, sysObj);
                 expect(res).toEqual({
                     list: [{ x: ".bashrc", show: ".bashrc", des: "file" }],
+                    pre: "cat ",
+                    last: "",
+                });
+            });
+            it("点文件2", () => {
+                const res = getTip(parse("cat ."), 5, 5, sysObj);
+                expect(res).toEqual({
+                    list: [
+                        { x: "./", des: "" },
+                        { x: ".bashrc", show: ".bashrc", des: "file" },
+                    ],
                     pre: "cat ",
                     last: "",
                 });
