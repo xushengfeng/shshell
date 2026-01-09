@@ -417,12 +417,45 @@ describe("仅路径补全，基本命令补全", () => {
             });
         });
         describe("转义判断", () => {
-            it("引号转义", () => {
-                const res = getTip(parse('cd "/home/al'), 11, 11, sysObj);
-                expect(res).toEqual({
-                    list: [{ x: '"/home/alice"', show: "alice", des: "dir" }],
-                    pre: "cd ",
-                    last: "",
+            describe("引号转义", () => {
+                it("常规", () => {
+                    const res = getTip(parse('cd "/home/al'), 11, 11, sysObj);
+                    expect(res).toEqual({
+                        list: [{ x: '"/home/alice"', show: "alice", des: "dir" }], // todo 光标定位
+                        pre: "cd ",
+                        last: "",
+                    });
+                });
+                it("/补全", () => {
+                    const res = getTip(parse('cd "/home'), 9, 9, sysObj);
+                    expect(res).toEqual({
+                        list: [{ x: '"/home/"', des: "" }],
+                        pre: "cd ",
+                        last: "",
+                    });
+                });
+                it("/补全2", () => {
+                    const res = getTip(parse('cd "/home"'), 9, 9, sysObj);
+                    expect(res).toEqual({
+                        list: [{ x: '"/home/"', des: "" }],
+                        pre: "cd ",
+                        last: "",
+                    });
+                });
+                it("/补全3", () => {
+                    const res = getTip(parse('cd ".'), 9, 9, sysObj);
+                    expect(res).toEqual({
+                        list: [
+                            { x: '"./"', des: "" },
+                            {
+                                des: "file",
+                                show: ".bashrc",
+                                x: '".bashrc"',
+                            },
+                        ],
+                        pre: "cd ",
+                        last: "",
+                    });
                 });
             });
             it("其他转义", () => {
