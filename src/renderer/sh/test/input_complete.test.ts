@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { VirtualLinux } from "./vr_fs/vr_fs";
 import { getTip, matchItem } from "../input_complete";
-import { parseIn, parseIn2, ShInputItem2 } from "../parser_in";
+import { parseIn, parseIn2, type ShInputItem2 } from "../parser_in";
 import { tryX } from "../../try";
 
 const vrfs = new VirtualLinux({
@@ -319,8 +319,7 @@ describe("仅路径补全，基本命令补全", () => {
         });
     });
     describe("路径补全", () => {
-        describe("起头", () => {});
-        describe("末尾", () => {
+        describe("默认", () => {
             it("目录补全带斜杠", () => {
                 const res = getTip(parse("cd downloads"), 12, 12, sysObj);
                 expect(res).toEqual({
@@ -368,7 +367,7 @@ describe("仅路径补全，基本命令补全", () => {
                 });
             });
             it("点点点相对", () => {
-                const res = getTip(parse("cd ../../home/al"), 12, 12, sysObj);
+                const res = getTip(parse("cd ../../home/al"), 14, 14, sysObj);
                 expect(res).toEqual({
                     list: [{ x: "../../home/alice", show: "alice", des: "dir" }],
                     pre: "cd ",
@@ -384,7 +383,6 @@ describe("仅路径补全，基本命令补全", () => {
                 });
             });
         });
-        describe("中间", () => {});
         describe("转义判断", () => {
             it("引号转义", () => {
                 const res = getTip(parse('cd "/home/al'), 11, 11, sysObj);

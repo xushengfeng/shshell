@@ -17,9 +17,15 @@ export function pathMatchCursor(
         }
         pathPos = thisEnd + 1; // for sep
     }
-    const basePath = pathList.slice(0, pathIndex).join(path.sep) + path.sep;
+    let basePathI = 0;
+    for (let i = 0; i < pathIndex; i++) {
+        basePathI += pathList[i].length;
+        basePathI += 1;
+    }
+    const basePath = cur.slice(0, basePathI);
     const focusPart = pathList[pathIndex] ?? "";
 
-    const p = path.isAbsolute(cur) ? basePath : path.join(cwd, basePath);
+    // 空表示从 cwd 开始，即相对路径
+    const p = path.normalize(basePath === "" ? cwd : path.isAbsolute(basePath) ? basePath : path.join(cwd, basePath));
     return { basePath, focusPart, p };
 }
