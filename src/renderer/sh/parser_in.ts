@@ -107,7 +107,7 @@ export function parseInFlat(command: string): ShInputItem[] {
                 start: i,
                 end: endIndex,
             });
-            break; // 结束解析
+            i = endIndex;
         } else {
             // 无引号 token
             while (i < len) {

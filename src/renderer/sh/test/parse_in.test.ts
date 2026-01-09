@@ -308,6 +308,21 @@ describe("注释", () => {
         ];
         expect(parseIn(input)).toEqual(expected);
     });
+    it("注释换行", () => {
+        const input = "echo Hello # This is a comment\necho World";
+        const expected: ShInputItem[] = [
+            { type: "item", input: "echo", value: "echo", start: 0, end: 4 },
+            { type: "blank", input: " ", value: " ", start: 4, end: 5 },
+            { type: "item", input: "Hello", value: "Hello", start: 5, end: 10 },
+            { type: "blank", input: " ", value: " ", start: 10, end: 11 },
+            { type: "ignore", input: "# This is a comment", value: "", start: 11, end: 30 },
+            { type: "blank", input: "\n", value: " ", start: 30, end: 31 },
+            { type: "item", input: "echo", value: "echo", start: 31, end: 35 },
+            { type: "blank", input: " ", value: " ", start: 35, end: 36 },
+            { type: "item", input: "World", value: "World", start: 36, end: 41 },
+        ];
+        expect(parseIn(input)).toEqual(expected);
+    });
 });
 
 describe("括号处理", () => {
