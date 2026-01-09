@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { VirtualLinux } from "./vr_fs/vr_fs";
-import { getTip } from "../input_complete";
+import { getTip, matchItem } from "../input_complete";
 import { parseIn, parseIn2 } from "../parser_in";
 import { tryX } from "../../try";
 
@@ -92,6 +92,114 @@ const sysObj = {
 function parse(input: string) {
     return parseIn2(parseIn(input));
 }
+
+describe("光标定位", () => {
+    it("空", () => {
+        expect(matchItem([], 0)).toEqual({ d: [] });
+    });
+    it("开头", () => {
+        expect(matchItem(parse("echo"), 0)).toEqual({ d: [{ list: [parse("echo")[0]] }] });
+    });
+    it("结尾", () => {
+        expect(matchItem(parse("echo"), 4)).toEqual({ d: [{ list: [parse("echo")[0]] }] });
+    });
+    it("中间", () => {
+        expect(matchItem(parse("ec ho"), 2)).toEqual({ d: [{ list: parse("ec ho").slice(0, 2) }] });
+    });
+    it("嵌套", () => {
+        expect(matchItem(parse("echo (ab)"), 7)).toEqual({
+            d: [
+                { list: parse("echo (ab)").slice(2, 3) },
+                {
+                    list: [
+                        {
+                            type: "main",
+                            input: "ab",
+                            value: "ab",
+                            start: 6,
+                            end: 8,
+                        },
+                    ],
+                },
+            ],
+        });
+    });
+    it("嵌套2", () => {
+        expect(matchItem(parse("echo (a)"), 7)).toEqual({
+            d: [
+                { list: parse("echo (a)").slice(2, 3) },
+                {
+                    list: [
+                        {
+                            type: "main",
+                            input: "a",
+                            value: "a",
+                            start: 6,
+                            end: 7,
+                        },
+                        { type: "other", input: ")", value: ")", start: 7, end: 8 },
+                    ],
+                },
+            ],
+        });
+    });
+    it("嵌套3", () => {
+        const p = parse("echo ((a))");
+        expect(matchItem(p, 5)).toEqual({
+            d: [{ list: [p[1], p[2]] }, { list: [{ type: "other", input: "(", value: "(", start: 5, end: 6 }] }],
+        });
+        expect(matchItem(p, 6)).toEqual({
+            d: [
+                { list: [p[2]] },
+                {
+                    list: [
+                        { type: "other", input: "(", value: "(", start: 5, end: 6 },
+                        {
+                            type: "arg",
+                            input: "(a)",
+                            value: "",
+                            start: 6,
+                            end: 9,
+                            chindren: [
+                                { type: "other", input: "(", value: "(", start: 6, end: 7 },
+                                { type: "main", input: "a", value: "a", start: 7, end: 8 },
+                                { type: "other", input: ")", value: ")", start: 8, end: 9 },
+                            ],
+                        },
+                    ],
+                },
+                { list: [{ type: "other", input: "(", value: "(", start: 6, end: 7 }] },
+            ],
+        });
+        expect(matchItem(p, 7)).toEqual({
+            d: [
+                { list: [p[2]] },
+                {
+                    list: [
+                        {
+                            type: "arg",
+                            input: "(a)",
+                            value: "",
+                            start: 6,
+                            end: 9,
+                            chindren: [
+                                { type: "other", input: "(", value: "(", start: 6, end: 7 },
+                                { type: "main", input: "a", value: "a", start: 7, end: 8 },
+                                { type: "other", input: ")", value: ")", start: 8, end: 9 },
+                            ],
+                        },
+                    ],
+                },
+                {
+                    list: [
+                        { type: "other", input: "(", value: "(", start: 6, end: 7 },
+                        { type: "main", input: "a", value: "a", start: 7, end: 8 },
+                    ],
+                },
+            ],
+        });
+    });
+});
 
 describe("仅路径补全，基本命令补全", () => {
     describe("空", () => {
