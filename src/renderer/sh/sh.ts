@@ -275,6 +275,9 @@ class Page {
             }
             if (e.key === "Tab") {
                 e.preventDefault();
+                tipController?.clear();
+                tipController = null;
+                tipX = null;
                 tipX = getTip(
                     parseIn2(parseIn(this.inputCommandEl.gv)), // todo 解析缓存
                     this.inputCommandEl.el.selectionStart || 0,
