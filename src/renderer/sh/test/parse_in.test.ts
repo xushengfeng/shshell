@@ -206,6 +206,13 @@ describe("引号处理", () => {
             ];
             expect(parseIn(input)).toEqual(expected);
         });
+        it("不闭合3", () => {
+            const input = `"/usr`;
+            const expected: ShInputItem[] = [
+                { type: "item", input: `"/usr`, value: "/usr", start: 0, end: 5, protected: true },
+            ];
+            expect(parseIn(input)).toEqual(expected);
+        });
     });
     // 假设两种引号是等价的，单引号通过那纯双引号也没问题
     describe("混合引号", () => {

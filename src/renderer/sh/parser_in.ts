@@ -61,7 +61,7 @@ export function parseInFlat(command: string): ShInputItem[] {
         const tokenValueParts: string[] = [];
         let isYinhao = false;
 
-        if ((char === `'` || char === `"`) && command[i - 1] === " ") {
+        if ((char === `'` || char === `"`) && (command[i - 1] === " " || i === 0)) {
             isYinhao = true;
             tokenInputParts.push(char);
             i++;
