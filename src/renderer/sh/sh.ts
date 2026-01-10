@@ -1,4 +1,4 @@
-import { button, initDKH, input, spacer, txt, view } from "dkh-ui";
+import { button, initDKH, spacer, textarea, txt, view } from "dkh-ui";
 import type { IPty } from "node-pty";
 const path = require("node:path") as typeof import("node:path");
 const fs = require("node:fs") as typeof import("node:fs");
@@ -132,29 +132,36 @@ class Page {
 
     mainEl = view();
     historyEl = view("y").addInto(this.mainEl);
-    private inputAreaEl = view().addInto(this.mainEl);
+    private inputAreaEl = view().style({ position: "relative" }).addInto(this.mainEl);
     private inputPromptEl = view().addInto(this.inputAreaEl);
     private inputCommandElP = view()
-        .style({ position: "relative" })
+        .style({ position: "relative", minWidth: "2ch", flexGrow: 1 })
         .addInto(this.inputAreaEl)
         .bindSet((v: string) => {
             this.inputCommandEl.sv(v);
             this.inputCommandEl.el.dispatchEvent(new Event("input"));
         });
-    private inputCommandStyleEl = view().style({ whiteSpace: "pre" }).addInto(this.inputCommandElP);
-    private inputCommandEl = input()
+    private inputCommandStyleEl = view()
+        .style({ whiteSpace: "pre-wrap", width: "100%", lineBreak: "anywhere", minHeight: "1lh" })
+        .addInto(this.inputCommandElP);
+    private inputCommandEl = textarea()
         .style({
             position: "absolute",
             top: 0,
             color: "transparent",
             backgroundColor: "transparent",
             caretColor: "black",
+            // @ts-expect-error
+            fieldSizing: "content",
+            width: "100%",
+            resize: "none",
+            lineBreak: "anywhere",
         })
         .attr({ spellcheck: false })
         .addInto(this.inputCommandElP);
     private inputTipEl = view()
         // todo 虚拟滚动
-        .style({ width: "300px", maxHeight: "300px", overflow: "scroll" })
+        .style({ position: "absolute", width: "300px", maxHeight: "300px", overflow: "auto", background: "#fff" })
         .addInto(this.inputAreaEl);
     constructor(op: { inputPrompt?: string; sh: Sh }) {
         const finish = () => {
@@ -260,6 +267,9 @@ class Page {
 
         this.inputCommandEl.on("input", () => {
             this.inputCommandStyleEl.clear().add(getInputStyle(this.inputCommandEl.gv));
+            tipController?.clear();
+            tipController = null;
+            tipX = null;
         });
 
         this.inputCommandEl.on("keydown", (e) => {
@@ -308,6 +318,36 @@ class Page {
                         this.inputCommandEl.el.focus();
                     }
                 });
+
+                const p = Page.findNodeAndOffset(
+                    this.inputCommandStyleEl.el,
+                    (this.inputCommandEl.el.selectionStart || 0) - last.length,
+                );
+                console.log(p);
+
+                const range = document.createRange();
+                const rect = p
+                    ? (() => {
+                          range.setStart(p.node, p.offset);
+                          range.setEnd(p.node, p.offset);
+                          return range.getBoundingClientRect();
+                      })()
+                    : this.inputCommandStyleEl.el.getBoundingClientRect();
+
+                const parentRect = this.inputAreaEl.el.getBoundingClientRect();
+                const tipRect = this.inputTipEl.el.getBoundingClientRect();
+                this.inputTipEl.style({
+                    left: `min(${rect.left - parentRect.left}px , ${parentRect.width - tipRect.width}px)`,
+                });
+                if (rect.bottom + tipRect.height < window.innerHeight) {
+                    this.inputTipEl.style({
+                        top: `${rect.bottom - parentRect.top}px`,
+                    });
+                } else {
+                    this.inputTipEl.style({
+                        top: `${rect.top - tipRect.height - parentRect.top}px`,
+                    });
+                }
             }
             if (e.key === "Enter") {
                 if (tipController && tipX) {
@@ -483,6 +523,32 @@ class Page {
 
     private allCommands() {
         return this.innerCommand.union(this.bin);
+    }
+
+    private static findNodeAndOffset(rootNode: Node, targetIndex: number) {
+        // 使用树的深度优先遍历 (DFS)
+        let currentIndex = 0;
+        function traverse(node: Node): { node: Node; offset: number } | null {
+            for (let i = 0; i < node.childNodes.length; i++) {
+                const child = node.childNodes[i];
+                if (child.nodeType === Node.TEXT_NODE) {
+                    const len = child.textContent?.length || 0;
+                    if (currentIndex + len >= targetIndex) {
+                        return {
+                            node: child,
+                            offset: targetIndex - currentIndex,
+                        };
+                    }
+                    currentIndex += len;
+                } else {
+                    const result = traverse(child);
+                    if (result) return result;
+                }
+            }
+            return null;
+        }
+
+        return traverse(rootNode);
     }
 
     setInputPrompt(prompt: string) {
