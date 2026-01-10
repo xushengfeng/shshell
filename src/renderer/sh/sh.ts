@@ -130,8 +130,8 @@ class Page {
     private inputPromptSymbol = { cursor: Symbol("cursor"), spacer: Symbol("spacer"), cwd: Symbol("cwd") };
     private inputPrompt: (string | symbol)[][] = [];
 
-    mainEl = view();
-    historyEl = view("y").addInto(this.mainEl);
+    mainEl = view("y");
+    historyEl = view("y").style({ overflowY: "scroll" }).addInto(this.mainEl);
     private inputAreaEl = view().style({ position: "relative" }).addInto(this.mainEl);
     private inputPromptEl = view().addInto(this.inputAreaEl);
     private inputCommandElP = view()
@@ -161,7 +161,14 @@ class Page {
         .addInto(this.inputCommandElP);
     private inputTipEl = view()
         // todo 虚拟滚动
-        .style({ position: "absolute", width: "300px", maxHeight: "300px", overflow: "auto", background: "#fff" })
+        .style({
+            position: "absolute",
+            width: "300px",
+            maxHeight: "300px",
+            overflow: "auto",
+            background: "#fff",
+            zIndex: 1,
+        })
         .addInto(this.inputAreaEl);
     constructor(op: { inputPrompt?: string; sh: Sh }) {
         const finish = () => {
@@ -323,7 +330,6 @@ class Page {
                     this.inputCommandStyleEl.el,
                     (this.inputCommandEl.el.selectionStart || 0) - last.length,
                 );
-                console.log(p);
 
                 const range = document.createRange();
                 const rect = p
@@ -519,6 +525,8 @@ class Page {
             this.setInputPrompt(op.inputPrompt);
         }
         finish();
+
+        this.historyEl.style({ flexGrow: 1 }).add(spacer());
     }
 
     private allCommands() {
@@ -588,5 +596,6 @@ const p1 = new Page({
 p1.mainEl
     .style({
         fontFamily: "'FiraCode Nerd Font Mono'",
+        height: "100vh",
     })
     .addInto();
