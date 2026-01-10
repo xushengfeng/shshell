@@ -89,6 +89,10 @@ export class Render {
         rest: "",
     };
 
+    // 用于开发调试，延时输出
+    private _delay_to_show: ShOutputItem[] = [];
+    private _delay_to_show_timer: NodeJS.Timeout | null = null;
+
     private onDataCb: (data: string) => void = () => {};
 
     constructor() {
@@ -178,6 +182,10 @@ export class Render {
         set(el, char, x);
         // 如果是宽字符，设置下一个单元格为占位
         if (width === 2) {
+            const next = line[x + 1];
+            if (next && "el" in next) {
+                next.el.remove();
+            }
             line[x + 1] = { is2Width: true };
         } else if (line[x + 1] && "is2Width" in line[x + 1]) {
             if (x + 1 + 1 === line.length) {
@@ -243,6 +251,28 @@ export class Render {
         if (this.altbuf) {
             this.altbuf.writeTokens(l.items);
         } else this.writeTokens(l.items);
+    }
+    _wirteDelay(data: string) {
+        const l = parseOut(this.dataRest.rest + data);
+        this.dataRest.rest = l.rest;
+        console.log(this.dataRest.rest + data, l);
+        if (l.items.find((i) => i.type === "other")) {
+            console.warn(
+                "存在未处理的输出项，可能存在bug",
+                l,
+                l.items.filter((i) => i.type === "other"),
+            );
+        }
+        this._delay_to_show.push(...l.items);
+        if (!this._delay_to_show_timer) {
+            this._delay_to_show_timer = setInterval(() => {
+                const token = this._delay_to_show.shift();
+                if (token)
+                    if (this.altbuf) {
+                        this.altbuf.writeTokens([token]);
+                    } else this.writeTokens([token]);
+            }, 20);
+        }
     }
     writeTokens(tokens: ShOutputItem[]) {
         const renderText = (item: ShOutputItemText) => {
