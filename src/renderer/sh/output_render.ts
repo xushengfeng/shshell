@@ -25,7 +25,46 @@ const girdItemClass = addClass(
 export class Render {
     el = view();
     private mainEl = view();
-    private inputCursorEl = input().style({ position: "absolute", opacity: "0", pointerEvents: "none" });
+    private inputCursorInputEl = input().style({
+        position: "absolute",
+        opacity: "0",
+        pointerEvents: "none",
+        height: "2ch",
+        lineHeight: "2ch",
+        width: "1px",
+    });
+    private inputCursorDisplayEl = view().style({
+        position: "absolute",
+        width: "1px",
+        height: "2ch",
+        background: "#000",
+    });
+    // 显示ime composing字符
+    private inputCursorComposeEl = view()
+        .style({ position: "absolute", pointerEvents: "none" })
+        .bindSet((v: string | { top: string; left: string }, el) => {
+            if (typeof v === "string") {
+                if (v === "") {
+                    this.inputCursorComposeEl.style({ display: "none" });
+                } else {
+                    this.inputCursorComposeEl.style({ display: "" });
+                }
+                el.innerText = v;
+                setTimeout(() => {
+                    // todo 不超出范围
+                }, 10);
+            } else {
+                this.inputCursorComposeEl
+                    .style({
+                        top: v.top,
+                        left: v.left,
+                    })
+                    .data({
+                        pLeft: v.left,
+                        pTop: v.top,
+                    });
+            }
+        });
     private seg = new Intl.Segmenter("en", { granularity: "grapheme" });
     private size = {
         rows: 24,
@@ -102,18 +141,22 @@ export class Render {
 
         let composing = false;
         this.mainEl.on("click", () => {
-            this.inputCursorEl.el.focus();
+            this.inputCursorInputEl.el.focus();
         });
-        this.inputCursorEl
+        this.inputCursorInputEl
             .on("compositionstart", () => {
                 composing = true;
             })
+            .on("compositionupdate", (e) => {
+                this.inputCursorComposeEl.sv(e.data);
+            })
             .on("compositionend", () => {
                 composing = false;
+                this.inputCursorComposeEl.sv("");
             })
             .on("input", () => {
-                this.onDataCb(this.inputCursorEl.gv);
-                this.inputCursorEl.sv("");
+                this.onDataCb(this.inputCursorInputEl.gv);
+                this.inputCursorInputEl.sv("");
             })
             .on("keydown", (e) => {
                 if (composing) return;
@@ -122,11 +165,15 @@ export class Render {
             })
             .on("blur", () => {
                 composing = false;
+                this.inputCursorComposeEl.sv("");
             });
 
-        this.el.add(this.inputCursorEl);
-        this.inputCursorEl.el.focus();
-        // todo 定位光标，渲染光标
+        this.el
+            .style({ position: "relative" })
+            .add(this.inputCursorInputEl)
+            .add(this.inputCursorDisplayEl)
+            .add(this.inputCursorComposeEl);
+        this.inputCursorInputEl.el.focus();
     }
     private rSet(el: HTMLElement, char: string, zb: ZuoBiao) {
         const y = zb.y;
@@ -197,7 +244,7 @@ export class Render {
         return { width };
     }
     private rNewLine() {
-        const line = view().style({ minHeight: "2ch", lineBreak: "anywhere" });
+        const line = view().style({ minHeight: "2ch", lineHeight: "2ch", lineBreak: "anywhere" });
         this.mainEl.add(line);
         this.renderedLines.push({ chars: [], el: line.el });
     }
@@ -235,6 +282,33 @@ export class Render {
         const row = Math.max(0, Math.min(cr.row, this.size.rows - 1));
         this.cursor = { col, row };
         this.zuobiao = this.classicalToZuoBiao(this.cursor);
+        this.updateInputCursor();
+    }
+    private updateInputCursor() {
+        let _col = this.cursor.col;
+        let _row = this.cursor.row;
+        if (_col === this.size.cols) {
+            _col = 0;
+            _row += 1;
+        }
+        if (_row >= this.size.rows) {
+            _row = this.size.rows - 1;
+        }
+
+        // 定位输入光标
+        this.inputCursorInputEl.style({
+            top: `${_row * 2}ch`,
+            left: `${_col}ch`,
+        });
+        this.inputCursorDisplayEl.style({
+            top: `${_row * 2}ch`,
+            left: `${_col}ch`,
+        });
+        this.inputCursorComposeEl.sv({
+            top: `${_row * 2}ch`,
+            left: `${_col}ch`,
+        });
+        // todo blink
     }
 
     write(data: string) {
@@ -321,6 +395,7 @@ export class Render {
                     this.zuobiao.y += 1;
                     this.zuobiao.x = 0;
                     this.cursor = this.zuoBiaoToClassical(this.zuobiao);
+                    this.updateInputCursor();
                 } else if (item.xType === "toSpaceRight") {
                     for (let i = this.cursor.col; i < this.size.cols; i++) {
                         const zb = this.classicalToZuoBiao({ row: this.cursor.row, col: i });
@@ -392,6 +467,7 @@ export class Render {
                     const w = this.rSet(el.el, char, this.zuobiao);
                     this.zuobiao.x += w.width;
                     this.cursor = this.zuoBiaoToClassical(this.zuobiao);
+                    this.updateInputCursor();
                 }
             } else if (item.type === "raw") {
                 // todo 可以外放
