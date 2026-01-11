@@ -82,7 +82,17 @@ export function fillPath(
             res.push({ x: `${curValue}${path.sep}`, des: "" });
         }
     }
-    const { basePath, focusPart } = pathMatchCursor(curValue, offset - yinhao.length);
+    // offset是原始输入的偏移，所以需要传入 raw 路径
+    // 路径判断根据path.sep来分割，不用考虑转义与否
+    // 但返回值需要考虑转义
+    const { basePath: _basePath, focusPart: _focusPart } = pathMatchCursor(
+        yinhao ? curValue : raw,
+        offset - yinhao.length,
+    );
+
+    // todo 这里有点问题，应该根据转义来处理
+    const basePath = yinhao ? _basePath : _basePath.replaceAll("\\", "");
+    const focusPart = yinhao ? _focusPart : _focusPart.replaceAll("\\", "");
 
     // 空表示从 cwd 开始，即相对路径
     const p = path.normalize(
@@ -151,8 +161,6 @@ export function getTip(
     const last = input.slice(curPosEnd);
     const cur = input.slice(curPosStart, curPosEnd);
     const curValue = matchParseItem.value;
-
-    console.log({ pre, cur, curValue, last, matchParseItem, parse });
 
     if (matchParseItem.type === "main" || !matchParseListRaw.find((i) => i.type === "main")) {
         if (curValue) {

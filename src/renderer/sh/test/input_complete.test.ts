@@ -41,6 +41,15 @@ const vrfs = new VirtualLinux({
                             isExecutable: false,
                             content: "user settings",
                         },
+                        "my docs": {
+                            type: "dir",
+                            children: {
+                                papers: {
+                                    type: "dir",
+                                    children: {},
+                                },
+                            },
+                        },
                     },
                 },
                 bob: {
@@ -379,6 +388,7 @@ describe("仅路径补全，基本命令补全", () => {
                     list: [
                         { x: "documents", show: "documents", des: "dir" },
                         { x: "downloads", show: "downloads", des: "dir" },
+                        { x: "my\\ docs", show: "my docs", des: "dir" },
                         { x: "profile", show: "profile", des: "file" },
                     ],
                     pre: "cd ",
@@ -393,6 +403,7 @@ describe("仅路径补全，基本命令补全", () => {
                     { x: "documents", show: "documents", des: "" },
                     { x: "downloads", show: "downloads", des: "" },
                     { x: "profile", show: "profile", des: "" },
+                    { x: "my docs", show: "my docs", des: "" },
                 ]);
             });
             it("目录补全带斜杠", () => {
@@ -408,6 +419,7 @@ describe("仅路径补全，基本命令补全", () => {
                 expect(res).toEqual([
                     { x: "documents", show: "documents", des: "", match: [{ start: 0, end: 2 }] },
                     { x: "downloads", show: "downloads", des: "", match: [{ start: 0, end: 2 }] },
+                    { x: "my docs", show: "my docs", des: "", match: [{ start: 3, end: 5 }] },
                     { x: "profile", show: "profile", des: "", match: [{ start: 2, end: 3 }] },
                 ]);
             });
@@ -416,6 +428,7 @@ describe("仅路径补全，基本命令补全", () => {
                 expect(res).toEqual([
                     { x: "./documents", show: "documents", des: "", match: [{ start: 0, end: 2 }] },
                     { x: "./downloads", show: "downloads", des: "", match: [{ start: 0, end: 2 }] },
+                    { x: "./my docs", show: "my docs", des: "", match: [{ start: 3, end: 5 }] },
                     { x: "./profile", show: "profile", des: "", match: [{ start: 2, end: 3 }] },
                 ]);
             });
@@ -442,8 +455,18 @@ describe("仅路径补全，基本命令补全", () => {
                     { x: ".bashrc", show: ".bashrc", des: "", match: [{ start: 0, end: 1 }] },
                 ]);
             });
+            it("空格", () => {
+                const res = fillPath(parse("my\\ docs")[0], 8, sysObj);
+                expect(res).toEqual([{ x: "my docs/", des: "" }]);
+            });
+            it("空格2", () => {
+                const res = fillPath(parse("my\\ docs/")[0], 9, sysObj);
+                expect(res).toEqual([{ x: "my docs/papers", show: "papers", des: "" }]);
+            });
         });
         describe("转义判断", () => {
+            // todo 替换掉gettip
+            // todo cd "/usr/"|
             describe("引号转义", () => {
                 it("常规", () => {
                     const res = getTip(parse('cd "/home/al'), 11, 11, sysObj);
@@ -460,6 +483,7 @@ describe("仅路径补全，基本命令补全", () => {
                             { x: '"documents"', show: "documents", des: "dir", cursorOffset: -1 },
                             { x: '"downloads"', show: "downloads", des: "dir", cursorOffset: -1 },
                             { x: '"profile"', show: "profile", des: "file" },
+                            { x: '"my docs"', show: "my docs", des: "dir", cursorOffset: -1 },
                         ],
                         pre: "cd ",
                         last: "",
