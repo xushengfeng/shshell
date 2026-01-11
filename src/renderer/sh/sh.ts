@@ -1,4 +1,4 @@
-import { button, initDKH, spacer, textarea, txt, view } from "dkh-ui";
+import { addClass, button, initDKH, spacer, textarea, txt, view } from "dkh-ui";
 import type { IPty } from "node-pty";
 const path = require("node:path") as typeof import("node:path");
 const fs = require("node:fs") as typeof import("node:fs");
@@ -217,6 +217,7 @@ class Page {
         const showInputTip = (list: InputTip) => {
             let show = true;
             let index = 0;
+            let lastIndex = -1;
             let cbSelect: (selected: string) => void = () => {};
             const ll = list.map((i) => {
                 const el = view("x").add([i.show ?? i.x, spacer(), txt(i.des).style({ color: "#888" })]);
@@ -228,14 +229,26 @@ class Page {
             });
             this.inputTipEl.clear().add(ll.map((i) => i.el));
 
+            function setSelectStyle(i: number) {
+                ll[lastIndex]?.el.el.classList.remove(inputTipSelectClass);
+                lastIndex = i;
+                const item = ll[i];
+                item.el.class(inputTipSelectClass);
+                item.el.el.scrollIntoView({ block: "nearest" });
+            }
+
+            setSelectStyle(index);
+
             return {
                 up: () => {
                     if (index > 0) index--;
                     if (index === 0) index = ll.length - 1;
+                    setSelectStyle(index);
                 },
                 down: () => {
                     if (index < ll.length - 1) index++;
                     else index = 0;
+                    setSelectStyle(index);
                 },
                 select: () => {
                     if (!show) return;
@@ -590,6 +603,14 @@ class Page {
 initDKH({
     pureStyle: true,
 });
+
+const inputTipSelectClass = addClass(
+    {
+        backgroundColor: "#ddd",
+    },
+    {},
+);
+
 const p1 = new Page({
     inputPrompt: "<${cwd}${spacer}>\n$ ${cursor}",
     sh: new Sh(),

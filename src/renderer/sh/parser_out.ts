@@ -657,6 +657,12 @@ function processToken(
                 }
                 return { items: [{ type: "other", content: token.content }] };
             }
+            if (last === "L") {
+            }
+            if (last === "M") {
+            }
+            if (last === "P") {
+            }
             if (last === "c") {
                 return {
                     items: [{ type: "raw", xType: "csi", ps: params.map((i) => String(i)), end: "c" }],
