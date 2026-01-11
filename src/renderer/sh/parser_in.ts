@@ -291,7 +291,8 @@ export function parseIn2(p: ShInputItem[]): ShInputItem2[] {
 
 export function unParseItemValue(value: string, t: `'` | `"` | "" | undefined) {
     if (t === `'` || t === `"`) {
-        return t + value.replaceAll(t, `\\${t}`) + t;
+        const end = value.endsWith("\\") && !value.endsWith("\\\\") ? `\\${t}` : t;
+        return t + value.replaceAll(t, `\\${t}`) + end;
     }
     return value.replaceAll(" ", "\\ ").replaceAll("'", "\\'").replaceAll('"', '\\"'); // todo
 }
