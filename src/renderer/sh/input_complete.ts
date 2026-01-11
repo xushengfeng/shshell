@@ -15,6 +15,16 @@ type InputTipItem = {
 };
 export type InputTip = InputTipItem[];
 
+export type InputTipSys = {
+    cwd: string;
+    allCommands: () => string[];
+    readDirSync: (p: string) => string[];
+    statSync: (p: string) => {
+        isDirectory(): boolean;
+    } | null;
+    isExeSync: (p: string) => boolean;
+};
+
 export function matchItem(parse: ShInputItem2[], cursorPos: number) {
     // 表示层级，方便处理嵌套
     // list包括同时接触的所有节点，一般为0，1，2个（2个时为一个item一个blank）
@@ -43,19 +53,77 @@ export function matchItem(parse: ShInputItem2[], cursorPos: number) {
     return { d };
 }
 
+export function fillPath(
+    matchParseItem: ShInputItem2,
+    /** 相对项目原始输入 */
+    offset: number,
+    sys: InputTipSys,
+    _map?: (file: string, path: string, content: InputTip[0]) => InputTip,
+) {
+    const { input: raw, value: curValue } = matchParseItem;
+    const res: (Omit<InputTipItem, "show"> & { show?: string })[] = [];
+
+    const map = _map ?? ((_, __, c) => [c]);
+
+    const yinhao = (raw.startsWith('"') || raw.startsWith("'") ? raw[0] : "") as `"` | `'` | "";
+    if (
+        !curValue.endsWith(path.sep) &&
+        ((matchParseItem.type === "arg" && !matchParseItem.chindren) || matchParseItem.type === "main")
+    ) {
+        // 点文件特殊处理
+        if (curValue.split(path.sep).at(-1) !== ".") {
+            const stat = sys.statSync(path.isAbsolute(curValue) ? curValue : path.join(sys.cwd, curValue));
+            if (curValue && stat?.isDirectory()) {
+                // 下面的应该只有一个，会默认推上去
+                res.push({ x: `${curValue}${path.sep}`, des: "" });
+                return res;
+            }
+        } else {
+            res.push({ x: `${curValue}${path.sep}`, des: "" });
+        }
+    }
+    const { basePath, focusPart } = pathMatchCursor(curValue, offset - yinhao.length);
+
+    // 空表示从 cwd 开始，即相对路径
+    const p = path.normalize(
+        basePath === "" ? sys.cwd : path.isAbsolute(basePath) ? basePath : path.join(sys.cwd, basePath),
+    );
+    const [dir] = tryX(() => sys.readDirSync(p));
+    const fuse = new Fuse(dir ?? [], { includeMatches: true });
+    const r = fuse.search(focusPart);
+    if (focusPart.length === 0) {
+        // 全部列出
+        for (const file of dir ?? []) {
+            const nPath = curValue ? basePath + file : file;
+            res.push(
+                ...map(file, path.join(p, file), {
+                    show: file,
+                    x: nPath,
+                    des: "",
+                }),
+            );
+        }
+    } else {
+        for (const { item: file, matches } of r) {
+            const nPath = curValue ? basePath + file : file;
+            res.push(
+                ...map(file, path.join(p, file), {
+                    show: file,
+                    x: nPath,
+                    des: "",
+                    match: matches?.map((i) => ({ start: i.indices[0][0], end: i.indices[0][1] + 1 })),
+                }),
+            );
+        }
+    }
+    return res;
+}
+
 export function getTip(
     parse: ShInputItem2[],
     _cursorStart: number,
     _cursorEnd: number,
-    sys: {
-        cwd: string;
-        allCommands: () => string[];
-        readDirSync: (p: string) => string[];
-        statSync: (p: string) => {
-            isDirectory(): boolean;
-        } | null;
-        isExeSync: (p: string) => boolean;
-    },
+    sys: InputTipSys,
 ): { list: InputTip; pre: string; last: string } {
     const res: (Omit<InputTipItem, "show"> & { show?: string })[] = [];
 
@@ -84,81 +152,25 @@ export function getTip(
     const curValue = matchParseItem.value;
 
     console.log({ pre, cur, curValue, last, matchParseItem, parse });
-    function fillPath(
-        curValue: string,
-        raw: string,
-        offset: number,
-        map: (file: string, path: string, content: InputTip[0]) => InputTip,
-    ) {
-        const yinhao = (raw.startsWith('"') || raw.startsWith("'") ? raw[0] : "") as `"` | `'` | "";
-        if (
-            !curValue.endsWith(path.sep) &&
-            ((matchParseItem.type === "arg" && !matchParseItem.chindren) || matchParseItem.type === "main")
-        ) {
-            // 点文件特殊处理
-            if (curValue.split(path.sep).at(-1) !== ".") {
-                const stat = sys.statSync(path.isAbsolute(curValue) ? curValue : path.join(sys.cwd, curValue));
-                if (curValue && stat?.isDirectory()) {
-                    // 下面的应该只有一个，会默认推上去
-                    res.push({ x: `${curValue}${path.sep}`, des: "" });
-                    return;
-                }
-            } else {
-                res.push({ x: `${curValue}${path.sep}`, des: "" });
-            }
-        }
-        const { basePath, focusPart } = pathMatchCursor(curValue, offset - yinhao.length);
-
-        // 空表示从 cwd 开始，即相对路径
-        const p = path.normalize(
-            basePath === "" ? sys.cwd : path.isAbsolute(basePath) ? basePath : path.join(sys.cwd, basePath),
-        );
-        const [dir] = tryX(() => sys.readDirSync(p));
-        const fuse = new Fuse(dir ?? [], { includeMatches: true });
-        const r = fuse.search(focusPart);
-        if (focusPart.length === 0) {
-            // 全部列出
-            for (const file of dir ?? []) {
-                const nPath = curValue ? basePath + file : file;
-                res.push(
-                    ...map(file, path.join(p, file), {
-                        show: file,
-                        x: nPath,
-                        des: "",
-                    }),
-                );
-            }
-        } else {
-            for (const { item: file, matches } of r) {
-                const nPath = curValue ? basePath + file : file;
-                res.push(
-                    ...map(file, path.join(p, file), {
-                        show: file,
-                        x: nPath,
-                        des: "",
-                        match: matches?.map((i) => ({ start: i.indices[0][0], end: i.indices[0][1] + 1 })),
-                    }),
-                );
-            }
-        }
-    }
 
     if (matchParseItem.type === "main" || !matchParseListRaw.find((i) => i.type === "main")) {
         if (curValue) {
             if (curValue.startsWith(".") || path.isAbsolute(curValue)) {
-                fillPath(curValue, matchParseItem.input, cursorStart - curPosStart, (_, p, c) => {
-                    const stat = sys.statSync(path.join(p));
-                    if (!stat) {
-                        return [{ ...c, des: "error" }];
-                    }
-                    if (stat.isDirectory()) {
-                        return [{ ...c, des: "dir" }];
-                    }
-                    if (sys.isExeSync(path.join(p))) {
-                        return [{ ...c, des: "file" }];
-                    }
-                    return [];
-                });
+                res.push(
+                    ...fillPath(matchParseItem, cursorStart - curPosStart, sys, (_, p, c) => {
+                        const stat = sys.statSync(path.join(p));
+                        if (!stat) {
+                            return [{ ...c, des: "error" }];
+                        }
+                        if (stat.isDirectory()) {
+                            return [{ ...c, des: "dir" }];
+                        }
+                        if (sys.isExeSync(path.join(p))) {
+                            return [{ ...c, des: "file" }];
+                        }
+                        return [];
+                    }),
+                );
             }
         }
         const l = sys.allCommands();
@@ -178,19 +190,21 @@ export function getTip(
             }
         }
     } else {
-        fillPath(curValue, matchParseItem.input, cursorStart - curPosStart, (_, p, c) => {
-            const stat = sys.statSync(p);
-            if (!stat) {
-                return [{ ...c, des: "error" }];
-            }
-            if (stat.isDirectory()) {
-                return [{ ...c, des: "dir" }];
-            }
-            if (p) {
-                return [{ ...c, des: "file" }];
-            }
-            return [];
-        });
+        res.push(
+            ...fillPath(matchParseItem, cursorStart - curPosStart, sys, (_, p, c) => {
+                const stat = sys.statSync(p);
+                if (!stat) {
+                    return [{ ...c, des: "error" }];
+                }
+                if (stat.isDirectory()) {
+                    return [{ ...c, des: "dir" }];
+                }
+                if (p) {
+                    return [{ ...c, des: "file" }];
+                }
+                return [];
+            }),
+        );
     }
     const yinhao = (cur.startsWith('"') || cur.startsWith("'") ? cur[0] : "") as `"` | `'` | "";
     return {

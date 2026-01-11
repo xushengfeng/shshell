@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { VirtualLinux } from "./vr_fs/vr_fs";
-import { getTip, matchItem } from "../input_complete";
+import { fillPath, getTip, matchItem } from "../input_complete";
 import { parseIn, parseIn2, type ShInputItem2 } from "../parser_in";
 import { tryX } from "../../try";
 
@@ -356,21 +356,7 @@ describe("仅路径补全，基本命令补全", () => {
         // todo /补充
     });
     describe("路径补全", () => {
-        // todo 直接用路径补全函数，不用gettip
-        describe("默认", () => {
-            it("空", () => {
-                const res = getTip(parse("cd "), 3, 3, sysObj);
-                expect(noMatch(res)).toEqual({
-                    list: [
-                        { x: "documents", show: "documents", des: "dir" },
-                        { x: "downloads", show: "downloads", des: "dir" },
-                        { x: ".bashrc", show: ".bashrc", des: "file" },
-                        { x: "profile", show: "profile", des: "file" },
-                    ],
-                    pre: "cd ",
-                    last: "",
-                });
-            });
+        describe("常规", () => {
             it("目录补全带斜杠", () => {
                 const res = getTip(parse("cd downloads"), 12, 12, sysObj);
                 expect(noMatch(res)).toEqual({
@@ -399,60 +385,54 @@ describe("仅路径补全，基本命令补全", () => {
                     last: "",
                 });
             });
+        });
+        describe("默认", () => {
+            it("目录补全带斜杠", () => {
+                const res = fillPath(parse("downloads")[0], 9, sysObj);
+                expect(res).toEqual([{ x: "downloads/", des: "" }]);
+            });
+            it("绝对", () => {
+                const res = fillPath(parse("/home/al")[0], 8, sysObj);
+                expect(res).toEqual([{ x: "/home/alice", show: "alice", match: [{ start: 0, end: 2 }], des: "" }]);
+            });
+            it("相对", () => {
+                const res = fillPath(parse("do")[0], 2, sysObj);
+                expect(res).toEqual([
+                    { x: "documents", show: "documents", des: "", match: [{ start: 0, end: 2 }] },
+                    { x: "downloads", show: "downloads", des: "", match: [{ start: 0, end: 2 }] },
+                    { x: "profile", show: "profile", des: "", match: [{ start: 2, end: 3 }] },
+                ]);
+            });
             it("点相对", () => {
-                const res = getTip(parse("cd ./do"), 6, 6, sysObj);
-                expect(noMatch(res)).toEqual({
-                    list: [
-                        { x: "./documents", show: "documents", des: "dir" },
-                        { x: "./downloads", show: "downloads", des: "dir" },
-                        { x: "./profile", show: "profile", des: "file" },
-                    ],
-                    pre: "cd ",
-                    last: "",
-                });
+                const res = fillPath(parse("./do")[0], 4, sysObj);
+                expect(res).toEqual([
+                    { x: "./documents", show: "documents", des: "", match: [{ start: 0, end: 2 }] },
+                    { x: "./downloads", show: "downloads", des: "", match: [{ start: 0, end: 2 }] },
+                    { x: "./profile", show: "profile", des: "", match: [{ start: 2, end: 3 }] },
+                ]);
             });
             it("点点相对", () => {
-                const res = getTip(parse("cd ../bo"), 7, 7, sysObj);
-                expect(noMatch(res)).toEqual({
-                    list: [{ x: "../bob", show: "bob", des: "dir" }],
-                    pre: "cd ",
-                    last: "",
-                });
+                const res = fillPath(parse("../bo")[0], 5, sysObj);
+                expect(res).toEqual([{ x: "../bob", show: "bob", des: "", match: [{ start: 0, end: 2 }] }]);
             });
             it("点点点相对", () => {
-                const res = getTip(parse("cd ../../home/al"), 14, 14, sysObj);
-                expect(noMatch(res)).toEqual({
-                    list: [{ x: "../../home/alice", show: "alice", des: "dir" }],
-                    pre: "cd ",
-                    last: "",
-                });
+                const res = fillPath(parse("../../home/al")[0], 13, sysObj);
+                expect(res).toEqual([{ x: "../../home/alice", show: "alice", des: "", match: [{ start: 0, end: 2 }] }]);
             });
             it("点点点相对2", () => {
-                const res = getTip(parse("cd ../.."), 8, 8, sysObj);
-                expect(noMatch(res)).toEqual({
-                    list: [{ x: "../../", show: "../../", des: "" }],
-                    pre: "cd ",
-                    last: "",
-                });
+                const res = fillPath(parse("../..")[0], 5, sysObj);
+                expect(res).toEqual([{ x: "../../", des: "" }]);
             });
             it("点文件", () => {
-                const res = getTip(parse("cat .ba"), 6, 6, sysObj);
-                expect(noMatch(res)).toEqual({
-                    list: [{ x: ".bashrc", show: ".bashrc", des: "file" }],
-                    pre: "cat ",
-                    last: "",
-                });
+                const res = fillPath(parse(".ba")[0], 3, sysObj);
+                expect(res).toEqual([{ x: ".bashrc", show: ".bashrc", des: "", match: [{ start: 0, end: 3 }] }]);
             });
             it("点文件2", () => {
-                const res = getTip(parse("cat ."), 5, 5, sysObj);
-                expect(noMatch(res)).toEqual({
-                    list: [
-                        { x: "./", show: "./", des: "" },
-                        { x: ".bashrc", show: ".bashrc", des: "file" },
-                    ],
-                    pre: "cat ",
-                    last: "",
-                });
+                const res = fillPath(parse(".")[0], 1, sysObj);
+                expect(res).toEqual([
+                    { x: "./", des: "" },
+                    { x: ".bashrc", show: ".bashrc", des: "", match: [{ start: 0, end: 1 }] },
+                ]);
             });
         });
         describe("转义判断", () => {
