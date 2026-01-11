@@ -387,6 +387,14 @@ describe("仅路径补全，基本命令补全", () => {
             });
         });
         describe("默认", () => {
+            it("空", () => {
+                const res = fillPath({ type: "blank", input: "", end: 0, start: 0, value: "" }, 0, sysObj);
+                expect(res).toEqual([
+                    { x: "documents", show: "documents", des: "" },
+                    { x: "downloads", show: "downloads", des: "" },
+                    { x: "profile", show: "profile", des: "" },
+                ]);
+            });
             it("目录补全带斜杠", () => {
                 const res = fillPath(parse("downloads")[0], 9, sysObj);
                 expect(res).toEqual([{ x: "downloads/", des: "" }]);
@@ -451,7 +459,6 @@ describe("仅路径补全，基本命令补全", () => {
                         list: [
                             { x: '"documents"', show: "documents", des: "dir", cursorOffset: -1 },
                             { x: '"downloads"', show: "downloads", des: "dir", cursorOffset: -1 },
-                            { x: '".bashrc"', show: ".bashrc", des: "file" },
                             { x: '"profile"', show: "profile", des: "file" },
                         ],
                         pre: "cd ",

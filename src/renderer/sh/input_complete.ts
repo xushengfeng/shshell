@@ -68,7 +68,7 @@ export function fillPath(
     const yinhao = (raw.startsWith('"') || raw.startsWith("'") ? raw[0] : "") as `"` | `'` | "";
     if (
         !curValue.endsWith(path.sep) &&
-        ((matchParseItem.type === "arg" && !matchParseItem.chindren) || matchParseItem.type === "main")
+        ((matchParseItem.type === "arg" && !matchParseItem.chindren) || matchParseItem.type === "main") // todo 放到外部判断
     ) {
         // 点文件特殊处理
         if (curValue.split(path.sep).at(-1) !== ".") {
@@ -88,12 +88,13 @@ export function fillPath(
     const p = path.normalize(
         basePath === "" ? sys.cwd : path.isAbsolute(basePath) ? basePath : path.join(sys.cwd, basePath),
     );
-    const [dir] = tryX(() => sys.readDirSync(p));
-    const fuse = new Fuse(dir ?? [], { includeMatches: true });
+    const dir = tryX(() => sys.readDirSync(p))[0] ?? [];
+    const ndir = focusPart.startsWith(".") ? dir : dir.filter((i) => !i.startsWith("."));
+    const fuse = new Fuse(ndir, { includeMatches: true });
     const r = fuse.search(focusPart);
     if (focusPart.length === 0) {
         // 全部列出
-        for (const file of dir ?? []) {
+        for (const file of ndir) {
             const nPath = curValue ? basePath + file : file;
             res.push(
                 ...map(file, path.join(p, file), {
