@@ -305,7 +305,12 @@ class Page {
             }
             if (e.key === "Tab") {
                 e.preventDefault();
-                tipController?.clear();
+                if (tipController) {
+                    if (e.shiftKey) {
+                        tipController.up();
+                    } else tipController.down();
+                    return;
+                }
                 tipController = null;
                 tipX = null;
                 tipX = getTip(
