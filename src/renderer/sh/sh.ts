@@ -250,7 +250,7 @@ class Page {
             return {
                 up: () => {
                     if (index > 0) index--;
-                    if (index === 0) index = ll.length - 1;
+                    else index = ll.length - 1;
                     setSelectStyle(index);
                 },
                 down: () => {
