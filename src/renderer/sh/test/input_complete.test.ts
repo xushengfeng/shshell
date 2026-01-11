@@ -93,6 +93,16 @@ function parse(input: string) {
     return parseIn2(parseIn(input));
 }
 
+function noMatch(r: ReturnType<typeof getTip>) {
+    return {
+        ...r,
+        list: r.list.map((i) => {
+            const { match, ...rest } = i;
+            return rest;
+        }),
+    };
+}
+
 describe("光标定位", () => {
     it("空", () => {
         expect(matchItem([], 0)).toEqual({ d: [] });
@@ -275,10 +285,11 @@ describe("仅路径补全，基本命令补全", () => {
     describe("命令补全", () => {
         it("命令", () => {
             const res = getTip(parse("c"), 1, 1, sysObj);
-            expect(res).toEqual({
+            expect(noMatch(res)).toEqual({
                 list: [
                     { x: "cat", show: "cat", des: "" },
                     { x: "cd", show: "cd", des: "" },
+                    { x: "echo", show: "echo", des: "" },
                 ],
                 pre: "",
                 last: "",
@@ -286,10 +297,23 @@ describe("仅路径补全，基本命令补全", () => {
         });
         it("命令2", () => {
             const res = getTip(parse("e"), 0, 0, sysObj);
-            expect(res).toEqual({
+            expect(noMatch(res)).toEqual({
                 list: [
                     { x: "echo", show: "echo", des: "" },
                     { x: "exit", show: "exit", des: "" },
+                ],
+                pre: "",
+                last: "",
+            });
+        });
+
+        it("匹配范围", () => {
+            const res = getTip(parse("c"), 1, 1, sysObj);
+            expect(res).toEqual({
+                list: [
+                    { x: "cat", show: "cat", des: "", match: [{ start: 0, end: 1 }] },
+                    { x: "cd", show: "cd", des: "", match: [{ start: 0, end: 1 }] },
+                    { x: "echo", show: "echo", des: "", match: [{ start: 1, end: 2 }] },
                 ],
                 pre: "",
                 last: "",
@@ -299,7 +323,7 @@ describe("仅路径补全，基本命令补全", () => {
     describe("可执行文件补全", () => {
         it("可执行文件", () => {
             const res = getTip(parse("/usr/b"), 6, 6, sysObj);
-            expect(res).toEqual({
+            expect(noMatch(res)).toEqual({
                 list: [{ x: "/usr/bin", show: "bin", des: "dir" }],
                 pre: "",
                 last: "",
@@ -307,7 +331,7 @@ describe("仅路径补全，基本命令补全", () => {
         });
         it("可执行文件，相对目录", () => {
             const res = getTip(parse("./bi"), 4, 4, { ...sysObj, cwd: "/usr" });
-            expect(res).toEqual({
+            expect(noMatch(res)).toEqual({
                 list: [{ x: "./bin", show: "bin", des: "dir" }],
                 pre: "",
                 last: "",
@@ -315,7 +339,7 @@ describe("仅路径补全，基本命令补全", () => {
         });
         it("可执行文件，引号", () => {
             const res = getTip(parse('"/usr/b"'), 7, 7, sysObj);
-            expect(res).toEqual({
+            expect(noMatch(res)).toEqual({
                 list: [{ x: '"/usr/bin"', show: "bin", des: "dir", cursorOffset: -1 }],
                 pre: "",
                 last: "",
@@ -323,7 +347,7 @@ describe("仅路径补全，基本命令补全", () => {
         });
         it("可执行文件，相对目录，引号", () => {
             const res = getTip(parse('"./bi"'), 5, 5, { ...sysObj, cwd: "/usr" });
-            expect(res).toEqual({
+            expect(noMatch(res)).toEqual({
                 list: [{ x: '"./bin"', show: "bin", des: "dir", cursorOffset: -1 }],
                 pre: "",
                 last: "",
@@ -332,10 +356,11 @@ describe("仅路径补全，基本命令补全", () => {
         // todo /补充
     });
     describe("路径补全", () => {
+        // todo 直接用路径补全函数，不用gettip
         describe("默认", () => {
             it("空", () => {
                 const res = getTip(parse("cd "), 3, 3, sysObj);
-                expect(res).toEqual({
+                expect(noMatch(res)).toEqual({
                     list: [
                         { x: "documents", show: "documents", des: "dir" },
                         { x: "downloads", show: "downloads", des: "dir" },
@@ -348,7 +373,7 @@ describe("仅路径补全，基本命令补全", () => {
             });
             it("目录补全带斜杠", () => {
                 const res = getTip(parse("cd downloads"), 12, 12, sysObj);
-                expect(res).toEqual({
+                expect(noMatch(res)).toEqual({
                     list: [{ x: "downloads/", show: "downloads/", des: "" }],
                     pre: "cd ",
                     last: "",
@@ -356,7 +381,7 @@ describe("仅路径补全，基本命令补全", () => {
             });
             it("绝对", () => {
                 const res = getTip(parse("cd /home/al"), 10, 10, sysObj);
-                expect(res).toEqual({
+                expect(noMatch(res)).toEqual({
                     list: [{ x: "/home/alice", show: "alice", des: "dir" }],
                     pre: "cd ",
                     last: "",
@@ -364,10 +389,11 @@ describe("仅路径补全，基本命令补全", () => {
             });
             it("相对", () => {
                 const res = getTip(parse("cd do"), 5, 5, sysObj);
-                expect(res).toEqual({
+                expect(noMatch(res)).toEqual({
                     list: [
                         { x: "documents", show: "documents", des: "dir" },
                         { x: "downloads", show: "downloads", des: "dir" },
+                        { x: "profile", show: "profile", des: "file" },
                     ],
                     pre: "cd ",
                     last: "",
@@ -375,10 +401,11 @@ describe("仅路径补全，基本命令补全", () => {
             });
             it("点相对", () => {
                 const res = getTip(parse("cd ./do"), 6, 6, sysObj);
-                expect(res).toEqual({
+                expect(noMatch(res)).toEqual({
                     list: [
                         { x: "./documents", show: "documents", des: "dir" },
                         { x: "./downloads", show: "downloads", des: "dir" },
+                        { x: "./profile", show: "profile", des: "file" },
                     ],
                     pre: "cd ",
                     last: "",
@@ -386,7 +413,7 @@ describe("仅路径补全，基本命令补全", () => {
             });
             it("点点相对", () => {
                 const res = getTip(parse("cd ../bo"), 7, 7, sysObj);
-                expect(res).toEqual({
+                expect(noMatch(res)).toEqual({
                     list: [{ x: "../bob", show: "bob", des: "dir" }],
                     pre: "cd ",
                     last: "",
@@ -394,7 +421,7 @@ describe("仅路径补全，基本命令补全", () => {
             });
             it("点点点相对", () => {
                 const res = getTip(parse("cd ../../home/al"), 14, 14, sysObj);
-                expect(res).toEqual({
+                expect(noMatch(res)).toEqual({
                     list: [{ x: "../../home/alice", show: "alice", des: "dir" }],
                     pre: "cd ",
                     last: "",
@@ -402,7 +429,7 @@ describe("仅路径补全，基本命令补全", () => {
             });
             it("点点点相对2", () => {
                 const res = getTip(parse("cd ../.."), 8, 8, sysObj);
-                expect(res).toEqual({
+                expect(noMatch(res)).toEqual({
                     list: [{ x: "../../", show: "../../", des: "" }],
                     pre: "cd ",
                     last: "",
@@ -410,7 +437,7 @@ describe("仅路径补全，基本命令补全", () => {
             });
             it("点文件", () => {
                 const res = getTip(parse("cat .ba"), 6, 6, sysObj);
-                expect(res).toEqual({
+                expect(noMatch(res)).toEqual({
                     list: [{ x: ".bashrc", show: ".bashrc", des: "file" }],
                     pre: "cat ",
                     last: "",
@@ -418,7 +445,7 @@ describe("仅路径补全，基本命令补全", () => {
             });
             it("点文件2", () => {
                 const res = getTip(parse("cat ."), 5, 5, sysObj);
-                expect(res).toEqual({
+                expect(noMatch(res)).toEqual({
                     list: [
                         { x: "./", show: "./", des: "" },
                         { x: ".bashrc", show: ".bashrc", des: "file" },
@@ -432,7 +459,7 @@ describe("仅路径补全，基本命令补全", () => {
             describe("引号转义", () => {
                 it("常规", () => {
                     const res = getTip(parse('cd "/home/al'), 11, 11, sysObj);
-                    expect(res).toEqual({
+                    expect(noMatch(res)).toEqual({
                         list: [{ x: '"/home/alice"', show: "alice", des: "dir", cursorOffset: -1 }],
                         pre: "cd ",
                         last: "",
@@ -440,7 +467,7 @@ describe("仅路径补全，基本命令补全", () => {
                 });
                 it("常规2", () => {
                     const res = getTip(parse('cd "'), 11, 11, sysObj);
-                    expect(res).toEqual({
+                    expect(noMatch(res)).toEqual({
                         list: [
                             { x: '"documents"', show: "documents", des: "dir", cursorOffset: -1 },
                             { x: '"downloads"', show: "downloads", des: "dir", cursorOffset: -1 },
@@ -453,7 +480,7 @@ describe("仅路径补全，基本命令补全", () => {
                 });
                 it("/补全", () => {
                     const res = getTip(parse('cd "/home'), 9, 9, sysObj);
-                    expect(res).toEqual({
+                    expect(noMatch(res)).toEqual({
                         list: [{ x: '"/home/"', show: "/home/", des: "", cursorOffset: -1 }],
                         pre: "cd ",
                         last: "",
@@ -461,7 +488,7 @@ describe("仅路径补全，基本命令补全", () => {
                 });
                 it("/补全2", () => {
                     const res = getTip(parse('cd "/home"'), 9, 9, sysObj);
-                    expect(res).toEqual({
+                    expect(noMatch(res)).toEqual({
                         list: [{ x: '"/home/"', show: "/home/", des: "", cursorOffset: -1 }],
                         pre: "cd ",
                         last: "",
@@ -469,7 +496,7 @@ describe("仅路径补全，基本命令补全", () => {
                 });
                 it("/补全3", () => {
                     const res = getTip(parse('cd ".'), 9, 9, sysObj);
-                    expect(res).toEqual({
+                    expect(noMatch(res)).toEqual({
                         list: [
                             { x: '"./"', des: "", show: "./", cursorOffset: -1 },
                             {
@@ -484,7 +511,7 @@ describe("仅路径补全，基本命令补全", () => {
                 });
                 it("/补全4", () => {
                     const res = getTip(parse('cat "/usr/"'), 10, 10, sysObj);
-                    expect(res).toEqual({
+                    expect(noMatch(res)).toEqual({
                         list: [
                             {
                                 des: "dir",
@@ -502,8 +529,15 @@ describe("仅路径补全，基本命令补全", () => {
             it("其他转义", () => {
                 // todo 更多转义测试
                 const res = getTip(parse("cat documents/read"), 18, 18, sysObj);
-                expect(res).toEqual({
-                    list: [{ x: "documents/read\\ me.md", show: "read me.md", des: "file" }],
+                expect(noMatch(res)).toEqual({
+                    list: [
+                        { x: "documents/read\\ me.md", show: "read me.md", des: "file" },
+                        {
+                            x: "documents/report.txt",
+                            show: "report.txt",
+                            des: "file",
+                        },
+                    ],
                     pre: "cat ",
                     last: "",
                 });

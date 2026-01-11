@@ -1,4 +1,4 @@
-import { addClass, button, initDKH, spacer, textarea, txt, view } from "dkh-ui";
+import { addClass, button, type ElType, initDKH, spacer, textarea, txt, view } from "dkh-ui";
 import type { IPty } from "node-pty";
 const path = require("node:path") as typeof import("node:path");
 const fs = require("node:fs") as typeof import("node:fs");
@@ -10,7 +10,7 @@ import { Terminal } from "@xterm/xterm";
 import "@xterm/xterm/css/xterm.css";
 import { parseIn, parseIn2 } from "./parser_in";
 import { Render } from "./output_render";
-import { getTip } from "./input_complete";
+import { getTip, type InputTip } from "./input_complete";
 import { tryX } from "../try";
 
 class Sh {
@@ -209,8 +209,6 @@ class Page {
             this.inputCommandEl.el.focus();
         };
 
-        type InputTip = { show?: string; x: string; des: string }[];
-
         let tipController: ReturnType<typeof showInputTip> | null = null;
         let tipX: ReturnType<typeof getTip> | null = null;
 
@@ -220,7 +218,17 @@ class Page {
             let lastIndex = -1;
             let cbSelect: (selected: string) => void = () => {};
             const ll = list.map((i) => {
-                const el = view("x").add([i.show ?? i.x, spacer(), txt(i.des).style({ color: "#888" })]);
+                const l: (string | ElType<HTMLElement>)[] = [];
+                if (i.show) {
+                    const mm = i.match?.at(0)?.start === 0 ? i.match : [{ start: 0, end: 0 }].concat(i.match || []);
+                    for (const [ind, m] of mm.entries()) {
+                        l.push(txt(i.show.slice(m.start, m.end)).style({ fontWeight: "bold" }));
+                        l.push(txt(i.show.slice(m.end, i.match?.[ind + 1]?.start || i.show.length)));
+                    }
+                } else {
+                    l.push(i.x);
+                }
+                const el = view("x").add([...l, spacer(), txt(i.des).style({ color: "#888" })]);
                 el.on("click", () => {
                     cbSelect(i.x);
                     this.inputTipEl.clear();

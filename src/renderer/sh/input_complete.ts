@@ -2,9 +2,17 @@ import { tryX } from "../try";
 import { unParseItemValue, type ShInputItem2 } from "./parser_in";
 import { pathMatchCursor } from "./path_match_cursor";
 
+import Fuse from "fuse.js";
+
 const path = require("node:path") as typeof import("node:path");
 
-type InputTipItem = { show: string; x: string; des: string; cursorOffset?: number };
+type InputTipItem = {
+    show: string;
+    x: string;
+    des: string;
+    match?: { start: number; end: number }[];
+    cursorOffset?: number;
+};
 export type InputTip = InputTipItem[];
 
 export function matchItem(parse: ShInputItem2[], cursorPos: number) {
@@ -106,16 +114,32 @@ export function getTip(
             basePath === "" ? sys.cwd : path.isAbsolute(basePath) ? basePath : path.join(sys.cwd, basePath),
         );
         const [dir] = tryX(() => sys.readDirSync(p));
-        for (const file of dir ?? []) {
-            if (!file.startsWith(focusPart)) continue; // todo 模糊
-            const nPath = curValue ? basePath + file : file;
-            res.push(
-                ...map(file, path.join(p, file), {
-                    show: file,
-                    x: nPath,
-                    des: "",
-                }),
-            );
+        const fuse = new Fuse(dir ?? [], { includeMatches: true });
+        const r = fuse.search(focusPart);
+        if (focusPart.length === 0) {
+            // 全部列出
+            for (const file of dir ?? []) {
+                const nPath = curValue ? basePath + file : file;
+                res.push(
+                    ...map(file, path.join(p, file), {
+                        show: file,
+                        x: nPath,
+                        des: "",
+                    }),
+                );
+            }
+        } else {
+            for (const { item: file, matches } of r) {
+                const nPath = curValue ? basePath + file : file;
+                res.push(
+                    ...map(file, path.join(p, file), {
+                        show: file,
+                        x: nPath,
+                        des: "",
+                        match: matches?.map((i) => ({ start: i.indices[0][0], end: i.indices[0][1] + 1 })),
+                    }),
+                );
+            }
         }
     }
 
@@ -138,9 +162,19 @@ export function getTip(
             }
         }
         const l = sys.allCommands();
-        for (const cmd of l) {
-            if (cmd.startsWith(cur)) {
+        const fuse = new Fuse(l, { includeMatches: true });
+        const r = fuse.search(curValue);
+        if (curValue.length === 0) {
+            for (const cmd of l) {
                 res.push({ x: cmd, des: "" });
+            }
+        } else {
+            for (const cmd of r) {
+                res.push({
+                    x: cmd.item,
+                    match: cmd.matches?.map((i) => ({ start: i.indices[0][0], end: i.indices[0][1] + 1 })),
+                    des: "",
+                });
             }
         }
     } else {
