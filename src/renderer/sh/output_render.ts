@@ -134,39 +134,69 @@ export class Render {
 
     private onDataCb: (data: string) => void = () => {};
 
+    private eventAbortController = new AbortController();
+
     constructor() {
         this.el.add(this.mainEl);
         this.setSize(this.size.rows, this.size.cols);
         this.rNewLine();
 
         let composing = false;
-        this.mainEl.on("click", () => {
-            this.inputCursorInputEl.el.focus();
-        });
+        this.mainEl.on(
+            "click",
+            () => {
+                this.inputCursorInputEl.el.focus();
+            },
+            { signal: this.eventAbortController.signal },
+        );
         this.inputCursorInputEl
-            .on("compositionstart", () => {
-                composing = true;
-            })
-            .on("compositionupdate", (e) => {
-                this.inputCursorComposeEl.sv(e.data);
-            })
-            .on("compositionend", () => {
-                composing = false;
-                this.inputCursorComposeEl.sv("");
-            })
-            .on("input", () => {
-                this.onDataCb(this.inputCursorInputEl.gv);
-                this.inputCursorInputEl.sv("");
-            })
-            .on("keydown", (e) => {
-                if (composing) return;
-                const s = key2seq(e);
-                if (s) this.onDataCb(s);
-            })
-            .on("blur", () => {
-                composing = false;
-                this.inputCursorComposeEl.sv("");
-            });
+            .on(
+                "compositionstart",
+                () => {
+                    composing = true;
+                },
+                { signal: this.eventAbortController.signal },
+            )
+            .on(
+                "compositionupdate",
+                (e) => {
+                    this.inputCursorComposeEl.sv(e.data);
+                },
+                { signal: this.eventAbortController.signal },
+            )
+            .on(
+                "compositionend",
+                () => {
+                    composing = false;
+                    this.inputCursorComposeEl.sv("");
+                },
+                { signal: this.eventAbortController.signal },
+            )
+            .on(
+                "input",
+                () => {
+                    this.onDataCb(this.inputCursorInputEl.gv);
+                    this.inputCursorInputEl.sv("");
+                },
+                { signal: this.eventAbortController.signal },
+            )
+            .on(
+                "keydown",
+                (e) => {
+                    if (composing) return;
+                    const s = key2seq(e);
+                    if (s) this.onDataCb(s);
+                },
+                { signal: this.eventAbortController.signal },
+            )
+            .on(
+                "blur",
+                () => {
+                    composing = false;
+                    this.inputCursorComposeEl.sv("");
+                },
+                { signal: this.eventAbortController.signal },
+            );
 
         this.el
             .style({ position: "relative" })
@@ -508,5 +538,12 @@ export class Render {
     }
     onData(fn: (data: string) => void) {
         this.onDataCb = fn;
+    }
+
+    finish() {
+        this.eventAbortController.abort();
+        this.inputCursorInputEl.attr({ disabled: true });
+        this.inputCursorDisplayEl.style({ display: "none" });
+        this.inputCursorComposeEl.style({ display: "none" });
     }
 }

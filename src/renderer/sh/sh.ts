@@ -458,6 +458,7 @@ class Page {
             const finish2 = () => {
                 dataItem.finishTime = Date.now();
                 dataItem.outputRender = rawT; // todo
+                term.finish();
                 finish();
             };
 
