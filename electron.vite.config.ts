@@ -11,6 +11,7 @@ export default defineConfig({
                 input: {
                     main: path.resolve(__dirname, "src/renderer/main.html"),
                 },
+                external: ["@withfig/autocomplete/dynamic"],
             },
         },
     },

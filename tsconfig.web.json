@@ -20,6 +20,9 @@
       "ESNext",
       "DOM",
       "DOM.Iterable"
+    ],
+    "types": [
+      "@withfig/autocomplete-types"
     ]
   },
   "include": [

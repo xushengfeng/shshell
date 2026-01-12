@@ -14,6 +14,7 @@ type InputTipItem = {
     cursorOffset?: number;
 };
 export type InputTip = InputTipItem[];
+type InputTipPart = (Omit<InputTipItem, "show"> & { show?: string })[];
 
 export type InputTipSys = {
     cwd: string;
@@ -130,13 +131,111 @@ export function fillPath(
     return res;
 }
 
+export async function loadFigSpec(command: string, pathModule = "../../../node_modules/@withfig/autocomplete") {
+    if (dataCache.has(command)) {
+        return;
+    }
+    try {
+        const x = await import(`${pathModule}/build/${command}.js`);
+        const s = x.default as Fig.Spec;
+        dataCache.set(command, s);
+    } catch (e) {
+        console.error(e);
+    }
+}
+
+export function getFigSpec(command: string) {
+    return dataCache.get(command);
+}
+
+export function getFigSpecList(
+    parse: ShInputItem2[],
+    matchItem: ShInputItem2,
+    sys: InputTipSys,
+): { state: "not_found" | "found"; list: InputTipPart } {
+    // 假设parse没有嵌套
+    const main = parse.find((i) => i.type === "main");
+    if (!main) return { state: "not_found", list: [] };
+    const cmd = main.value;
+    loadFigSpec(cmd);
+    const spec = getFigSpec(cmd);
+    if (!spec) return { state: "not_found", list: [] };
+    const beforeArgs = parse.slice(
+        0,
+        parse.findIndex((i) => i === matchItem),
+    );
+    const thisItem = matchItem.type === "arg" ? matchItem : null;
+    const beforeArgsList = beforeArgs.filter((i) => i.type === "arg").map((i) => i.value);
+    const res: InputTipPart = [];
+    let currentSpec = [...("subcommands" in spec ? (spec.subcommands ?? []) : [])];
+    let currentOptions = "options" in spec ? (spec.options ?? []) : [];
+    for (const ba of beforeArgsList) {
+        if (ba.startsWith("-")) continue; // todo option
+        const sc = currentSpec.find((s) => {
+            if (typeof s.name === "string") {
+                return s.name === ba;
+            }
+            return s.name.includes(ba);
+        });
+        if (sc) {
+            if (sc.subcommands) {
+                currentSpec = sc.subcommands;
+            } else {
+                if (sc.options) {
+                    currentOptions = sc.options;
+                }
+                currentSpec = [];
+            }
+        }
+    }
+
+    if (!thisItem?.value) {
+        for (const sc of currentSpec) {
+            if (typeof sc.name === "string") {
+                res.push({ x: sc.name, des: sc.description ?? "" });
+            } else {
+                for (const alias of sc.name) res.push({ x: alias, des: sc.description ?? "" });
+            }
+        }
+    } else {
+        for (const sc of currentSpec) {
+            if (typeof sc.name === "string") {
+                if (sc.name.startsWith(thisItem.value)) {
+                    res.push({ x: sc.name, des: sc.description ?? "" });
+                }
+            } else {
+                for (const alias of sc.name) {
+                    if (alias.startsWith(thisItem.value)) {
+                        res.push({ x: alias, des: sc.description ?? "" });
+                    }
+                }
+            }
+        }
+        if (thisItem.value.startsWith("-"))
+            for (const op of currentOptions) {
+                if (typeof op.name === "string") {
+                    if (op.name.startsWith(thisItem.value)) {
+                        res.push({ x: op.name, des: op.description ?? "" });
+                    }
+                } else {
+                    for (const alias of op.name) {
+                        if (alias.startsWith(thisItem.value)) {
+                            res.push({ x: alias, des: op.description ?? "" });
+                        }
+                    }
+                }
+            }
+    }
+    return { state: "found", list: res };
+}
+
 export function getTip(
     parse: ShInputItem2[],
     _cursorStart: number,
     _cursorEnd: number,
     sys: InputTipSys,
 ): { list: InputTip; pre: string; last: string } {
-    const res: (Omit<InputTipItem, "show"> & { show?: string })[] = [];
+    const res: InputTipPart = [];
 
     const input = parse.map((i) => i.input).join("");
     const cursorStart = Math.min(_cursorStart, input.length);
@@ -199,21 +298,25 @@ export function getTip(
             }
         }
     } else {
-        res.push(
-            ...fillPath(matchParseItem, cursorStart - curPosStart, sys, (_, p, c) => {
-                const stat = sys.statSync(p);
-                if (!stat) {
-                    return [{ ...c, des: "error" }];
-                }
-                if (stat.isDirectory()) {
-                    return [{ ...c, des: "dir" }];
-                }
-                if (p) {
-                    return [{ ...c, des: "file" }];
-                }
-                return [];
-            }),
-        );
+        const figRes = getFigSpecList(parse, matchParseItem, sys);
+        if (figRes.state === "found") {
+            res.push(...figRes.list);
+        } else
+            res.push(
+                ...fillPath(matchParseItem, cursorStart - curPosStart, sys, (_, p, c) => {
+                    const stat = sys.statSync(p);
+                    if (!stat) {
+                        return [{ ...c, des: "error" }];
+                    }
+                    if (stat.isDirectory()) {
+                        return [{ ...c, des: "dir" }];
+                    }
+                    if (p) {
+                        return [{ ...c, des: "file" }];
+                    }
+                    return [];
+                }),
+            );
     }
     const yinhao = (cur.startsWith('"') || cur.startsWith("'") ? cur[0] : "") as `"` | `'` | "";
     return {
@@ -231,3 +334,5 @@ export function getTip(
         last,
     };
 }
+
+const dataCache = new Map<string, Fig.Spec>();

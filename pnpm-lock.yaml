@@ -8,6 +8,9 @@ importers:
 
   .:
     dependencies:
+      '@withfig/autocomplete':
+        specifier: ^2.692.3
+        version: 2.692.3
       '@xterm/xterm':
         specifier: ^6.0.0
         version: 6.0.0
@@ -44,7 +47,10 @@ importers:
         version: 1.15.5
       '@vitest/coverage-v8':
         specifier: ^4.0.16
-        version: 4.0.16(vitest@4.0.16(@types/node@20.10.5))
+        version: 4.0.16(vitest@4.0.16(@types/node@20.10.5)(yaml@2.8.2))
+      '@withfig/autocomplete-types':
+        specifier: ^1.31.0
+        version: 1.31.0
       chalk:
         specifier: ^5.6.2
         version: 5.6.2
@@ -56,16 +62,16 @@ importers:
         version: 24.4.0
       electron-vite:
         specifier: ^4.0.0
-        version: 4.0.1(vite@7.3.0(@types/node@20.10.5))
+        version: 4.0.1(vite@7.3.0(@types/node@20.10.5)(yaml@2.8.2))
       typescript:
         specifier: ^5.1.6
         version: 5.1.6
       vite:
         specifier: ^7.1.11
-        version: 7.3.0(@types/node@20.10.5)
+        version: 7.3.0(@types/node@20.10.5)(yaml@2.8.2)
       vitest:
         specifier: ^4.0.16
-        version: 4.0.16(@types/node@20.10.5)
+        version: 4.0.16(@types/node@20.10.5)(yaml@2.8.2)
 
 packages:
 
@@ -553,6 +559,12 @@ packages:
     cpu: [x64]
     os: [win32]
 
+  '@fig/autocomplete-generators@2.4.0':
+    resolution: {integrity: sha512-fiaaCGmsgnbUJbVbNAcVDmrnCGj/SmfarK6WKt/lfQP9k1hLHkkmZQ836VSMJvPP1vAKFAiXpdJziG6EGyjAYg==}
+
+  '@fig/autocomplete-helpers@1.0.7':
+    resolution: {integrity: sha512-5jq01q2JtaLAjl8t3hOvE9GOp4a4Agj7YmxlBxRjuSwJY3qskfx/mdAgOX2qjgxZ74bHONAxQ1hzudwSICqZFg==}
+
   '@isaacs/cliui@8.0.2':
     resolution: {integrity: sha512-O8jcjabXaleOG9DQ0+ARXWZBTfnP4WNAqzuiJK7ll44AmxGKv/J2M4TPjxjY3znBCfvBXFzucm1twdyFybFqEA==}
     engines: {node: '>=12'}
@@ -831,6 +843,13 @@ packages:
 
   '@vitest/utils@4.0.16':
     resolution: {integrity: sha512-h8z9yYhV3e1LEfaQ3zdypIrnAg/9hguReGZoS7Gl0aBG5xgA410zBqECqmaF/+RkTggRsfnzc1XaAHA6bmUufA==}
+
+  '@withfig/autocomplete-types@1.31.0':
+    resolution: {integrity: sha512-TSZDo5jvEaeIHqmHY6Wkd3gBqVbxcHQVdkF6N1J8CXRBuQZpjUVci15/HPNYe0nKLvsomBWIRsTP3m1zr9pv3A==}
+
+  '@withfig/autocomplete@2.692.3':
+    resolution: {integrity: sha512-zxN7K8W+qWGc2ejWksd92xwAyCZ0faHvnk3c7jUoWkkk5e5iQf3/4mOLheFvYLoUWR5a36571VJ1DdyxmAWJZA==}
+    engines: {node: '>=20', pnpm: '>=9'}
 
   '@xterm/xterm@6.0.0':
     resolution: {integrity: sha512-TQwDdQGtwwDt+2cgKDLn0IRaSxYu1tSUjgKarSDkUM0ZNiSRXFpjxEsvc/Zgc5kq5omJ+V0a8/kIM2WD3sMOYg==}
@@ -1977,6 +1996,10 @@ packages:
     resolution: {integrity: sha512-iq6eVVI64nQQTRYq2KtEg2d2uU7LElhTJwsH4YzIHZshxlgZms/wIc4VoDQTlG/IvVIrBKG06CrZnp0qv7hkcQ==}
     engines: {node: '>=12'}
 
+  strip-json-comments@5.0.3:
+    resolution: {integrity: sha512-1tB5mhVo7U+ETBKNf92xT4hrQa3pm0MZ0PQvuDnWgAAGHDsfp4lPSpiS6psrSiet87wyGPh9ft6wmhOMQ0hDiw==}
+    engines: {node: '>=14.16'}
+
   sumchecker@3.0.1:
     resolution: {integrity: sha512-MvjXzkz/BOfyVDkG0oFOtBxHX2u3gKbMHIF/dXblZsgD3BWOFLmHovIpZY7BykJdAjcqRCBi1WYBNdEC9yI7vg==}
     engines: {node: '>= 8.0'}
@@ -2192,6 +2215,11 @@ packages:
 
   yallist@4.0.0:
     resolution: {integrity: sha512-3wdGidZyq5PB084XLES5TpOSRA3wjXAlIWMhum2kRcv/41Sn2emQ0dycQW4uZXLejwKvg6EsvbdlVL+FYEct7A==}
+
+  yaml@2.8.2:
+    resolution: {integrity: sha512-mplynKqc1C2hTVYxd0PU2xQAc22TI1vShAYGksCCfxbn/dFwnHTNi1bvYsBTkhdUNtGIf5xNOg938rrSSYvS9A==}
+    engines: {node: '>= 14.6'}
+    hasBin: true
 
   yargs-parser@21.1.1:
     resolution: {integrity: sha512-tVpsJW7DdjecAiFpbIB1e3qxIQsE6NoPc5/eTdrbbIC4h0LVsWhnoa3g+m2HclBIujHzsxZ4VJVA+GUuc2/LBw==}
@@ -2582,6 +2610,13 @@ snapshots:
   '@esbuild/win32-x64@0.27.2':
     optional: true
 
+  '@fig/autocomplete-generators@2.4.0': {}
+
+  '@fig/autocomplete-helpers@1.0.7':
+    dependencies:
+      semver: 7.7.3
+      typescript: 4.9.5
+
   '@isaacs/cliui@8.0.2':
     dependencies:
       string-width: 5.1.2
@@ -2644,7 +2679,7 @@ snapshots:
 
   '@npmcli/fs@3.1.0':
     dependencies:
-      semver: 7.5.1
+      semver: 7.7.3
 
   '@pkgjs/parseargs@0.11.0':
     optional: true
@@ -2791,7 +2826,7 @@ snapshots:
       '@types/node': 20.10.5
     optional: true
 
-  '@vitest/coverage-v8@4.0.16(vitest@4.0.16(@types/node@20.10.5))':
+  '@vitest/coverage-v8@4.0.16(vitest@4.0.16(@types/node@20.10.5)(yaml@2.8.2))':
     dependencies:
       '@bcoe/v8-coverage': 1.0.2
       '@vitest/utils': 4.0.16
@@ -2804,7 +2839,7 @@ snapshots:
       obug: 2.1.1
       std-env: 3.10.0
       tinyrainbow: 3.0.3
-      vitest: 4.0.16(@types/node@20.10.5)
+      vitest: 4.0.16(@types/node@20.10.5)(yaml@2.8.2)
     transitivePeerDependencies:
       - supports-color
 
@@ -2817,13 +2852,13 @@ snapshots:
       chai: 6.2.2
       tinyrainbow: 3.0.3
 
-  '@vitest/mocker@4.0.16(vite@7.3.0(@types/node@20.10.5))':
+  '@vitest/mocker@4.0.16(vite@7.3.0(@types/node@20.10.5)(yaml@2.8.2))':
     dependencies:
       '@vitest/spy': 4.0.16
       estree-walker: 3.0.3
       magic-string: 0.30.21
     optionalDependencies:
-      vite: 7.3.0(@types/node@20.10.5)
+      vite: 7.3.0(@types/node@20.10.5)(yaml@2.8.2)
 
   '@vitest/pretty-format@4.0.16':
     dependencies:
@@ -2846,6 +2881,16 @@ snapshots:
     dependencies:
       '@vitest/pretty-format': 4.0.16
       tinyrainbow: 3.0.3
+
+  '@withfig/autocomplete-types@1.31.0': {}
+
+  '@withfig/autocomplete@2.692.3':
+    dependencies:
+      '@fig/autocomplete-generators': 2.4.0
+      '@fig/autocomplete-helpers': 1.0.7
+      semver: 7.7.3
+      strip-json-comments: 5.0.3
+      yaml: 2.8.2
 
   '@xterm/xterm@6.0.0': {}
 
@@ -3274,7 +3319,7 @@ snapshots:
 
   electron-to-chromium@1.5.49: {}
 
-  electron-vite@4.0.1(vite@7.3.0(@types/node@20.10.5)):
+  electron-vite@4.0.1(vite@7.3.0(@types/node@20.10.5)(yaml@2.8.2)):
     dependencies:
       '@babel/core': 7.28.5
       '@babel/plugin-transform-arrow-functions': 7.27.1(@babel/core@7.28.5)
@@ -3282,7 +3327,7 @@ snapshots:
       esbuild: 0.25.12
       magic-string: 0.30.21
       picocolors: 1.1.1
-      vite: 7.3.0(@types/node@20.10.5)
+      vite: 7.3.0(@types/node@20.10.5)(yaml@2.8.2)
     transitivePeerDependencies:
       - supports-color
 
@@ -4162,6 +4207,8 @@ snapshots:
     dependencies:
       ansi-regex: 6.0.1
 
+  strip-json-comments@5.0.3: {}
+
   sumchecker@3.0.1:
     dependencies:
       debug: 4.3.4
@@ -4257,7 +4304,7 @@ snapshots:
       extsprintf: 1.4.1
     optional: true
 
-  vite@7.3.0(@types/node@20.10.5):
+  vite@7.3.0(@types/node@20.10.5)(yaml@2.8.2):
     dependencies:
       esbuild: 0.27.2
       fdir: 6.5.0(picomatch@4.0.3)
@@ -4268,11 +4315,12 @@ snapshots:
     optionalDependencies:
       '@types/node': 20.10.5
       fsevents: 2.3.3
+      yaml: 2.8.2
 
-  vitest@4.0.16(@types/node@20.10.5):
+  vitest@4.0.16(@types/node@20.10.5)(yaml@2.8.2):
     dependencies:
       '@vitest/expect': 4.0.16
-      '@vitest/mocker': 4.0.16(vite@7.3.0(@types/node@20.10.5))
+      '@vitest/mocker': 4.0.16(vite@7.3.0(@types/node@20.10.5)(yaml@2.8.2))
       '@vitest/pretty-format': 4.0.16
       '@vitest/runner': 4.0.16
       '@vitest/snapshot': 4.0.16
@@ -4289,7 +4337,7 @@ snapshots:
       tinyexec: 1.0.2
       tinyglobby: 0.2.15
       tinyrainbow: 3.0.3
-      vite: 7.3.0(@types/node@20.10.5)
+      vite: 7.3.0(@types/node@20.10.5)(yaml@2.8.2)
       why-is-node-running: 2.3.0
     optionalDependencies:
       '@types/node': 20.10.5
@@ -4344,6 +4392,8 @@ snapshots:
   yallist@3.1.1: {}
 
   yallist@4.0.0: {}
+
+  yaml@2.8.2: {}
 
   yargs-parser@21.1.1: {}
 

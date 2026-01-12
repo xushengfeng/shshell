@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { VirtualLinux } from "./vr_fs/vr_fs";
-import { fillPath, getTip, matchItem } from "../input_complete";
+import { fillPath, getFigSpec, getFigSpecList, getTip, loadFigSpec, matchItem } from "../input_complete";
 import { parseIn, parseIn2, type ShInputItem2 } from "../parser_in";
 import { tryX } from "../../try";
 
@@ -554,5 +554,37 @@ describe("仅路径补全，基本命令补全", () => {
                 });
             });
         });
+    });
+});
+
+describe("fig", async () => {
+    it("导入", async () => {
+        await loadFigSpec("git");
+        const x = getFigSpec("git");
+        expect(x).toBeDefined();
+        expect(x?.name).toBe("git");
+    });
+    it("子命令生成", async () => {
+        const parse = parseIn2(parseIn("git "));
+        const match = matchItem(parse, 4);
+        await loadFigSpec("git");
+        const res = getFigSpecList(parse, match.d[0].list[0], sysObj);
+        expect(res.list.find((i) => i.x === "commit")).toBeDefined();
+    });
+
+    it("匹配子命令", async () => {
+        const parse = parseIn2(parseIn("git com"));
+        const match = matchItem(parse, 7);
+        await loadFigSpec("git");
+        const res = getFigSpecList(parse, match.d[0].list[0], sysObj);
+        expect(res.list.find((i) => i.x === "commit")).toBeDefined();
+    });
+
+    it("匹配选项", async () => {
+        const parse = parseIn2(parseIn("git commit -"));
+        const match = matchItem(parse, 12);
+        await loadFigSpec("git");
+        const res = getFigSpecList(parse, match.d[0].list[0], sysObj);
+        expect(res.list.find((i) => i.x === "-m")).toBeDefined();
     });
 });
