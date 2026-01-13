@@ -624,13 +624,134 @@ const inputTipSelectClass = addClass(
     {},
 );
 
-const p1 = new Page({
-    inputPrompt: "<${cwd}${spacer}>\n$ ${cursor}",
-    sh: new Sh(),
+type Planes = {
+    // 大小坐标都是百分比，0-100
+    x: number;
+    y: number;
+    w: number;
+    h: number;
+    p: Page;
+    name: string;
+    id: string;
+}[];
+const tabs: { name: string; id: string; planes: Planes }[] = [];
+
+tabs.push({
+    id: "0",
+    name: "",
+    planes: [
+        {
+            x: 0,
+            y: 0,
+            w: 100,
+            h: 100,
+            p: new Page({
+                inputPrompt: "<${cwd}${spacer}>\n$ ${cursor}",
+                sh: new Sh(),
+            }),
+            name: "main",
+            id: "p0",
+        },
+    ],
 });
-p1.mainEl
-    .style({
-        fontFamily: "'FiraCode Nerd Font Mono'",
-        height: "100vh",
-    })
-    .addInto();
+
+const mainEl = view("y").style({ width: "100vw", height: "100vh" }).addInto();
+
+const tabsPel = view("x").style({ borderBottom: "1px solid #ccc" }).addInto(mainEl);
+const tabsEl = view("x").addInto(tabsPel);
+const addTabButton = button("+").on("click", () => {
+    const tab: (typeof tabs)[0] = {
+        id: `${Date.now()}`,
+        name: `tab ${tabs.length + 1}`,
+        planes: [
+            {
+                x: 0,
+                y: 0,
+                w: 100,
+                h: 100,
+                p: new Page({
+                    inputPrompt: "<${cwd}${spacer}>\n$ ${cursor}",
+                    sh: new Sh(),
+                }),
+                name: "main",
+                id: `p${Date.now()}`,
+            },
+        ],
+    };
+    tabs.push(tab);
+    addTab(tab);
+    updatePlanes(tab.planes);
+});
+tabsPel.add(addTabButton);
+
+const planesEl = view("y").style({ flexGrow: 1, position: "relative" }).addInto(mainEl);
+
+function addTab(tab: { name: string; id: string; planes: Planes }) {
+    const tabEl = view().style({ cursor: "pointer", padding: "4px" }).addInto(tabsEl);
+    tabEl
+        .add(
+            txt(tab.name || "untitled").on("click", () => {
+                updatePlanes(tab.planes);
+            }),
+        )
+        .add(
+            button("x")
+                .style({ marginLeft: "4px" })
+                .on("click", (e) => {
+                    e.stopPropagation();
+                    // todo kill processes
+                    const index = tabs.findIndex((t) => t.id === tab.id);
+                    if (index !== -1) {
+                        tabs.splice(index, 1);
+                        tabEl.remove();
+                        if (tabs.length > 0) {
+                            updatePlanes(tabs[Math.min(index, tabs.length - 1)].planes);
+                        } else {
+                            planesEl.clear();
+                        }
+                    }
+                }),
+        );
+}
+
+function updatePlanes(planes: Planes) {
+    const hasRendered = planesEl.queryAll("& > *");
+    const toRmove = new Set<ElType<HTMLElement>>(hasRendered);
+    for (const plane of planes) {
+        let toShow = true;
+        for (const el of toRmove) {
+            if (el.el.getAttribute("data-plane-id") === plane.id) {
+                toShow = false;
+                toRmove.delete(el);
+                plane.p.mainEl.style({
+                    left: `${plane.x}%`,
+                    top: `${plane.y}%`,
+                    width: `${plane.w}%`,
+                    height: `${plane.h}%`,
+                });
+            }
+        }
+
+        if (toShow) {
+            const el = plane.p.mainEl
+                .style({
+                    position: "absolute",
+                    left: `${plane.x}%`,
+                    top: `${plane.y}%`,
+                    width: `${plane.w}%`,
+                    height: `${plane.h}%`,
+                    fontFamily: "'FiraCode Nerd Font Mono'",
+                })
+                .data({ "plane-id": plane.id });
+            planesEl.add(el);
+        }
+    }
+    for (const el of toRmove) {
+        el.remove();
+    }
+}
+
+for (const [i, tab] of tabs.entries()) {
+    addTab(tab);
+    if (i === 0) updatePlanes(tab.planes);
+}
