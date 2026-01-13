@@ -389,7 +389,6 @@ describe("仅路径补全，基本命令补全", () => {
                         { x: "documents", show: "documents", des: "dir" },
                         { x: "downloads", show: "downloads", des: "dir" },
                         { x: "my\\ docs", show: "my docs", des: "dir" },
-                        { x: "profile", show: "profile", des: "file" },
                     ],
                     pre: "cd ",
                     last: "",
@@ -482,7 +481,6 @@ describe("仅路径补全，基本命令补全", () => {
                         list: [
                             { x: '"documents"', show: "documents", des: "dir", cursorOffset: -1 },
                             { x: '"downloads"', show: "downloads", des: "dir", cursorOffset: -1 },
-                            { x: '"profile"', show: "profile", des: "file" },
                             { x: '"my docs"', show: "my docs", des: "dir", cursorOffset: -1 },
                         ],
                         pre: "cd ",
@@ -506,7 +504,7 @@ describe("仅路径补全，基本命令补全", () => {
                     });
                 });
                 it("/补全3", () => {
-                    const res = getTip(parse('cd ".'), 9, 9, sysObj);
+                    const res = getTip(parse('cat ".'), 9, 9, sysObj);
                     expect(noMatch(res)).toEqual({
                         list: [
                             { x: '"./"', des: "", show: "./", cursorOffset: -1 },
@@ -516,7 +514,7 @@ describe("仅路径补全，基本命令补全", () => {
                                 x: '".bashrc"',
                             },
                         ],
-                        pre: "cd ",
+                        pre: "cat ",
                         last: "",
                     });
                 });

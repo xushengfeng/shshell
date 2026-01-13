@@ -298,10 +298,8 @@ export function getTip(
             }
         }
     } else {
-        const figRes = getFigSpecList(parse, matchParseItem, sys);
-        if (figRes.state === "found") {
-            res.push(...figRes.list);
-        } else
+        const mainCommand = parse.find((i) => i.type === "main")?.value || "";
+        if (mainCommand === "cd") {
             res.push(
                 ...fillPath(matchParseItem, cursorStart - curPosStart, sys, (_, p, c) => {
                     const stat = sys.statSync(p);
@@ -311,12 +309,30 @@ export function getTip(
                     if (stat.isDirectory()) {
                         return [{ ...c, des: "dir" }];
                     }
-                    if (p) {
-                        return [{ ...c, des: "file" }];
-                    }
                     return [];
                 }),
             );
+        } else {
+            const figRes = getFigSpecList(parse, matchParseItem, sys);
+            if (figRes.state === "found") {
+                res.push(...figRes.list);
+            } else
+                res.push(
+                    ...fillPath(matchParseItem, cursorStart - curPosStart, sys, (_, p, c) => {
+                        const stat = sys.statSync(p);
+                        if (!stat) {
+                            return [{ ...c, des: "error" }];
+                        }
+                        if (stat.isDirectory()) {
+                            return [{ ...c, des: "dir" }];
+                        }
+                        if (p) {
+                            return [{ ...c, des: "file" }];
+                        }
+                        return [];
+                    }),
+                );
+        }
     }
     const yinhao = (cur.startsWith('"') || cur.startsWith("'") ? cur[0] : "") as `"` | `'` | "";
     return {
