@@ -468,10 +468,19 @@ class Page {
             term.onData((data) => {
                 shProcess.write(data);
             });
-            term.el.style({ maxHeight: "80vh", overflowY: "scroll" });
+            term.onScroll(() => {
+                const toScrollTop =
+                    historyEl.el.offsetTop - this.historyEl.el.offsetHeight + historyEl.el.offsetHeight + 15;
+                if (toScrollTop - 80 < this.historyEl.el.scrollTop) {
+                    this.historyEl.el.scrollTop = toScrollTop;
+                }
+            });
+            term.el.style({ maxHeight: "80vh" });
             outputEl.add(term.el);
 
             historyEl.addInto(this.historyEl);
+
+            historyEl.el.scrollIntoView({ block: "end" });
 
             const com = parseIn(command)
                 .filter((i) => i.type !== "blank")

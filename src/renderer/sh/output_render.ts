@@ -133,6 +133,7 @@ export class Render {
     private _delay_to_show_timer: NodeJS.Timeout | null = null;
 
     private onDataCb: (data: string) => void = () => {};
+    private onScrollCb: () => void = () => {};
 
     private eventAbortController = new AbortController();
 
@@ -199,7 +200,7 @@ export class Render {
             );
 
         this.el
-            .style({ position: "relative" })
+            .style({ position: "relative", overflowY: "auto" })
             .add(this.inputCursorInputEl)
             .add(this.inputCursorDisplayEl)
             .add(this.inputCursorComposeEl);
@@ -276,6 +277,16 @@ export class Render {
     private rNewLine() {
         const line = view().style({ minHeight: "2ch", lineHeight: "2ch", lineBreak: "anywhere" });
         this.mainEl.add(line);
+        const toScrollTop = line.el.offsetTop - this.el.el.offsetHeight + line.el.offsetHeight + 15; // 滚动条占位，之后移除
+        if (
+            toScrollTop - 40 < // 偏移小于40内才追踪
+            this.el.el.scrollTop
+        ) {
+            // 如果当前在底部，保持在底部，否则就是滚动到上面查看的情况，不自动滚动
+            this.el.el.scrollTop = toScrollTop;
+            this.onScrollCb();
+        }
+
         this.renderedLines.push({ chars: [], el: line.el });
     }
     private rRmLineBelow() {
@@ -531,6 +542,9 @@ export class Render {
         this.mainEl.style({
             width: `${cols}ch`,
         });
+        this.el.style({
+            maxHeight: `${rows * 2}ch`,
+        });
         // cache
     }
     setAsAltBuf(parent: Render) {
@@ -539,11 +553,16 @@ export class Render {
     onData(fn: (data: string) => void) {
         this.onDataCb = fn;
     }
+    onScroll(fn: () => void) {
+        this.onScrollCb = fn;
+    }
 
     finish() {
         this.eventAbortController.abort();
         this.inputCursorInputEl.attr({ disabled: true });
         this.inputCursorDisplayEl.style({ display: "none" });
         this.inputCursorComposeEl.style({ display: "none" });
+        this.onScrollCb = () => {};
+        this.onDataCb = () => {};
     }
 }
