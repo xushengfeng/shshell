@@ -12,6 +12,7 @@ import { parseIn, parseIn2 } from "./parser_in";
 import { Render } from "./output_render";
 import { getTip, type InputTip } from "./input_complete";
 import { tryX } from "../try";
+import { DomRender } from "./render/dom_render";
 
 class Sh {
     private conn: import("ssh2").Client | undefined;
@@ -463,7 +464,8 @@ class Page {
                 });
 
             const outputEl = view().addInto(historyEl);
-            const term = new Render();
+            const domRender = new DomRender();
+            const term = new Render(domRender);
             term.setSize(30, 80);
             term.onData((data) => {
                 shProcess.write(data);
@@ -475,8 +477,8 @@ class Page {
                     this.historyEl.el.scrollTop = toScrollTop;
                 }
             });
-            term.el.style({ maxHeight: "80vh" });
-            outputEl.add(term.el);
+            domRender.el.style({ maxHeight: "80vh" });
+            outputEl.add(domRender.el);
 
             historyEl.addInto(this.historyEl);
 
