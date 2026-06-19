@@ -33,24 +33,47 @@ export class SimpleRender implements IRender {
         ) {
             line[i] = { char: _char };
         }
-        // 扩展行内（列）
-        const lineEndStart = line.length;
-        for (let i = lineEndStart; i < x; i++) {
-            set({ style: {} }, " ", i);
+
+        function setAs0(i: number) {
+            line[i] = { is2Width: true };
         }
-        if (line[x] && "is2Width" in line[x]) {
-            set({ style: {} }, " ", x - 1);
-        }
-        // 设置当前单元格
-        set(el, char, x);
-        // 如果是宽字符，设置下一个单元格为占位
-        if (width === 2) {
-            line[x + 1] = { is2Width: true };
-        } else if (line[x + 1] && "is2Width" in line[x + 1]) {
-            if (x + 1 + 1 === line.length) {
-                line.pop();
+        if (!line[x]) {
+            // 扩展行内（列）
+            const lineEndStart = line.length;
+            for (let i = lineEndStart; i < x; i++) {
+                set({ style: {} }, " ", i);
+            }
+            if (width === 2) {
+                set(el, char, x);
+                setAs0(x + 1);
             } else {
-                set({ style: {} }, " ", x + 1);
+                set(el, char, x);
+            }
+        } else {
+            if (width === 2) {
+                if ("is2Width" in line[x]) {
+                    set({ style: {} }, " ", x - 1);
+                }
+                if (line[x + 1] && "is2Width" in line[x + 1]) {
+                    set(el, char, x);
+                } else if (line[x + 2] && "is2Width" in line[x + 2]) {
+                    set(el, char, x);
+                    setAs0(x + 1);
+                    set({ style: {} }, " ", x + 2);
+                } else {
+                    set(el, char, x);
+                    setAs0(x + 1);
+                }
+            } else {
+                if ("is2Width" in line[x]) {
+                    set({ style: {} }, " ", x - 1);
+                    set(el, char, x);
+                } else {
+                    if (line[x + 1] && "is2Width" in line[x + 1]) {
+                        set(el, char, x);
+                        set({ style: {} }, " ", x + 1);
+                    } else set(el, char, x);
+                }
             }
         }
         return { width };

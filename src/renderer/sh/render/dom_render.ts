@@ -317,28 +317,50 @@ export class DomRender implements IRender {
             }
             line[i] = { el, char: _char };
         }
-        // 扩展行内（列）
-        const lineEndStart = line.length;
-        for (let i = lineEndStart; i < x; i++) {
-            set(txt(" ").el, " ", i);
-        }
-        if (line[x] && "is2Width" in line[x]) {
-            set(txt(" ").el, " ", x - 1);
-        }
-        // 设置当前单元格
-        set(el, char, x);
-        // 如果是宽字符，设置下一个单元格为占位
-        if (width === 2) {
-            const next = line[x + 1];
-            if (next && "el" in next) {
-                next.el.remove();
+        function setAs0(i: number) {
+            const has = line[i];
+            if (has && "el" in has) {
+                has.el.remove();
             }
-            line[x + 1] = { is2Width: true };
-        } else if (line[x + 1] && "is2Width" in line[x + 1]) {
-            if (x + 1 + 1 === line.length) {
-                line.pop();
+            line[i] = { is2Width: true };
+        }
+        if (!line[x]) {
+            // 扩展行内（列）
+            const lineEndStart = line.length;
+            for (let i = lineEndStart; i < x; i++) {
+                set(txt(" ").el, " ", i);
+            }
+            if (width === 2) {
+                set(el, char, x);
+                setAs0(x + 1);
             } else {
-                set(txt(" ").el, " ", x + 1);
+                set(el, char, x);
+            }
+        } else {
+            if (width === 2) {
+                if ("is2Width" in line[x]) {
+                    set(txt(" ").el, " ", x - 1);
+                }
+                if (line[x + 1] && "is2Width" in line[x + 1]) {
+                    set(el, char, x);
+                } else if (line[x + 2] && "is2Width" in line[x + 2]) {
+                    set(el, char, x);
+                    setAs0(x + 1);
+                    set(txt(" ").el, " ", x + 2);
+                } else {
+                    set(el, char, x);
+                    setAs0(x + 1);
+                }
+            } else {
+                if ("is2Width" in line[x]) {
+                    set(txt(" ").el, " ", x - 1);
+                    set(el, char, x);
+                } else {
+                    if (line[x + 1] && "is2Width" in line[x + 1]) {
+                        set(el, char, x);
+                        set(txt(" ").el, " ", x + 1);
+                    } else set(el, char, x);
+                }
             }
         }
         return { width };
