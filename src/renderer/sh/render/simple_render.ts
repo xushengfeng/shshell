@@ -93,7 +93,8 @@ export class SimpleRender implements IRender {
 
     setSize(rows: number, cols: number) {}
 
-    onData(fn: (data: string) => void) {}
+    onInput(fn: (data: string) => void) {}
+    onKey(fn: (data: { key: string; ctrlKey?: boolean; altKey?: boolean; shiftKey?: boolean }) => void) {}
 
     newAltRender(): IRender {
         const newRender = new SimpleRender();

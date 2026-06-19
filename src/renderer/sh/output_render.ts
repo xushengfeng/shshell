@@ -1,5 +1,5 @@
 import { wcswidth } from "simple-wcswidth";
-import { parseOut, type ShOutputItem, type ShOutputItemText } from "./parser_out";
+import { key2seq, parseOut, type ShOutputItem, type ShOutputItemText } from "./parser_out";
 
 type ClassicalCR = {
     col: number; // limit warp
@@ -20,7 +20,8 @@ export interface IRender {
     clearLine(y: number);
     setSize(rows: number, cols: number);
     updateInputCursor(row: number, col: number);
-    onData(fn: (data: string) => void);
+    onInput(fn: (data: string) => void);
+    onKey(fn: (data: { key: string; ctrlKey?: boolean; altKey?: boolean; shiftKey?: boolean }) => void);
     newAltRender(): IRender;
     finish();
     destroy();
@@ -102,8 +103,11 @@ export class Render {
 
     constructor(render: IRender) {
         this.irender = render;
-        this.irender.onData((data) => {
-            this.onDataCb(data);
+        this.irender.onInput((data) => {
+            this.inputText(data);
+        });
+        this.irender.onKey((data) => {
+            this.inputKey(data);
         });
         this.setSize(this.size.rows, this.size.cols);
         this.rNewLine();
@@ -348,6 +352,14 @@ export class Render {
     setAsAltBuf(parent: Render) {
         this.parent = parent;
     }
+
+    inputText(data: string) {
+        this.onDataCb(data);
+    }
+    inputKey(ke: { key: string; ctrlKey?: boolean; altKey?: boolean; shiftKey?: boolean }) {
+        this.onDataCb(key2seq(ke));
+    }
+
     onData(fn: (data: string) => void) {
         this.onDataCb = fn;
     }

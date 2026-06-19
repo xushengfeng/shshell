@@ -1,6 +1,6 @@
 import { txt, view, pack, input, addClass } from "dkh-ui";
 import { wcswidth } from "simple-wcswidth";
-import { key2seq, type ShOutputItemText } from "../parser_out";
+import type { ShOutputItemText } from "../parser_out";
 import type { IRender } from "../output_render";
 
 const girdItemClass = addClass(
@@ -20,7 +20,9 @@ export class DomRender implements IRender {
     private renderedLines: { chars: ({ el: HTMLElement; char: string } | { is2Width: boolean })[]; el: HTMLElement }[] =
         [];
 
-    private onDataCb: (data: string) => void = () => {};
+    private onInputCb: (data: string) => void = () => {};
+    private onKeyCb: (data: { key: string; ctrlKey?: boolean; altKey?: boolean; shiftKey?: boolean }) => void =
+        () => {};
     private colorMap = {
         background: {
             _black: "#000000",
@@ -141,7 +143,7 @@ export class DomRender implements IRender {
             .on(
                 "input",
                 () => {
-                    this.onDataCb(this.inputCursorInputEl.gv);
+                    this.onInputCb(this.inputCursorInputEl.gv);
                     this.inputCursorInputEl.sv("");
                 },
                 { signal: this.eventAbortController.signal },
@@ -150,8 +152,7 @@ export class DomRender implements IRender {
                 "keydown",
                 (e) => {
                     if (composing) return;
-                    const s = key2seq(e);
-                    if (s) this.onDataCb(s);
+                    this.onKeyCb(e);
                 },
                 { signal: this.eventAbortController.signal },
             )
@@ -344,8 +345,11 @@ export class DomRender implements IRender {
         // cache
     }
 
-    onData(fn: (data: string) => void) {
-        this.onDataCb = fn;
+    onInput(fn: (data: string) => void) {
+        this.onInputCb = fn;
+    }
+    onKey(fn: (data: { key: string; ctrlKey?: boolean; altKey?: boolean; shiftKey?: boolean }) => void) {
+        this.onKeyCb = fn;
     }
 
     newAltRender(): IRender {
@@ -363,6 +367,7 @@ export class DomRender implements IRender {
         this.inputCursorInputEl.attr({ disabled: true });
         this.inputCursorDisplayEl.style({ display: "none" });
         this.inputCursorComposeEl.style({ display: "none" });
-        this.onDataCb = () => {};
+        this.onInputCb = () => {};
+        this.onKeyCb = () => {};
     }
 }

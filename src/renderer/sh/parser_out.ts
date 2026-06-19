@@ -790,7 +790,7 @@ export function parseOut(output: string) {
     return { items, rest: tokens.rest };
 }
 
-export function key2seq(keyevent: KeyboardEvent): string {
+export function key2seq(keyevent: { key: string; ctrlKey?: boolean; altKey?: boolean; shiftKey?: boolean }): string {
     let seq = "";
     if (keyevent.ctrlKey) {
         const key = keyevent.key.toUpperCase();
