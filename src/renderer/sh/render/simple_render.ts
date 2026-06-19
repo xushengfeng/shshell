@@ -1,5 +1,5 @@
-import type { ShOutputItemText } from "../parser_out";
 import type { IRender } from "../output_render";
+import type { ShOutputItemText, MouseEvent } from "../parser_out";
 
 export class SimpleRender implements IRender {
     private renderedLines: { chars: ({ char: string } | { is2Width: boolean })[] }[] = [];
@@ -95,6 +95,7 @@ export class SimpleRender implements IRender {
 
     onInput(fn: (data: string) => void) {}
     onKey(fn: (data: { key: string; ctrlKey?: boolean; altKey?: boolean; shiftKey?: boolean }) => void) {}
+    onMouse(fn: (event: MouseEvent) => void) {}
 
     newAltRender(): IRender {
         const newRender = new SimpleRender();

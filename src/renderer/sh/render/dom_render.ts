@@ -1,7 +1,7 @@
-import { txt, view, pack, input, addClass } from "dkh-ui";
+import { addClass, input, pack, txt, view } from "dkh-ui";
 import { wcswidth } from "simple-wcswidth";
-import type { ShOutputItemText } from "../parser_out";
 import type { IRender } from "../output_render";
+import type { ShOutputItemText, MouseEvent } from "../parser_out";
 
 const girdItemClass = addClass(
     {
@@ -23,6 +23,7 @@ export class DomRender implements IRender {
     private onInputCb: (data: string) => void = () => {};
     private onKeyCb: (data: { key: string; ctrlKey?: boolean; altKey?: boolean; shiftKey?: boolean }) => void =
         () => {};
+    private onMouseCb: (event: MouseEvent) => void = () => {};
     private colorMap = {
         background: {
             _black: "#000000",
@@ -65,6 +66,8 @@ export class DomRender implements IRender {
     };
 
     private eventAbortController = new AbortController();
+    private charWidth: number | null = null;
+    private charHeight: number | null = null;
 
     private inputCursorInputEl = input().style({
         position: "absolute",
@@ -106,12 +109,117 @@ export class DomRender implements IRender {
                     });
             }
         });
+    private getMousePosition(e: globalThis.MouseEvent): { col: number; row: number } {
+        if (this.charWidth === null || this.charHeight === null) {
+            // 测量 1ch 的宽度和 2ch 的高度，使用 mainEl 的字体样式
+            const temp = document.createElement("div");
+            temp.style.position = "absolute";
+            temp.style.visibility = "hidden";
+            temp.style.width = "1ch";
+            temp.style.height = "2ch";
+            temp.style.fontFamily = "inherit";
+            temp.style.fontSize = "inherit";
+            temp.style.lineHeight = "inherit";
+            // 插入到 mainEl 以继承样式
+            this.mainEl.el.appendChild(temp);
+            const rect = temp.getBoundingClientRect();
+            this.charWidth = rect.width;
+            this.charHeight = rect.height; // 这是 2ch 的高度
+            this.mainEl.el.removeChild(temp);
+        }
+        const rect = this.mainEl.el.getBoundingClientRect();
+        const x = e.clientX - rect.left;
+        const y = e.clientY - rect.top + this.el.el.scrollTop;
+        // 考虑 mainEl 的内边距
+        const style = window.getComputedStyle(this.mainEl.el);
+        const paddingLeft = Number.parseFloat(style.paddingLeft) || 0;
+        const paddingTop = Number.parseFloat(style.paddingTop) || 0;
+        const adjustedX = x - paddingLeft;
+        const adjustedY = y - paddingTop;
+        // 计算列和行，确保至少为1
+        const col = Math.max(1, Math.floor(adjustedX / this.charWidth) + 1);
+        const row = Math.max(1, Math.floor(adjustedY / this.charHeight) + 1);
+        return { col, row };
+    }
+
     constructor() {
         this.el.add(this.mainEl);
         this.mainEl.on(
             "click",
             () => {
                 this.inputCursorInputEl.el.focus();
+            },
+            { signal: this.eventAbortController.signal },
+        );
+
+        // 鼠标事件监听
+        this.mainEl.on(
+            "mousedown",
+            (e) => {
+                const pos = this.getMousePosition(e);
+                this.onMouseCb({
+                    button: e.button,
+                    col: pos.col,
+                    row: pos.row,
+                    type: "press",
+                    ctrlKey: e.ctrlKey,
+                    altKey: e.altKey,
+                    shiftKey: e.shiftKey,
+                });
+            },
+            { signal: this.eventAbortController.signal },
+        );
+        this.mainEl.on(
+            "mouseup",
+            (e) => {
+                const pos = this.getMousePosition(e);
+                this.onMouseCb({
+                    button: e.button,
+                    col: pos.col,
+                    row: pos.row,
+                    type: "release",
+                    ctrlKey: e.ctrlKey,
+                    altKey: e.altKey,
+                    shiftKey: e.shiftKey,
+                });
+            },
+            { signal: this.eventAbortController.signal },
+        );
+        this.mainEl.on(
+            "mousemove",
+            (e) => {
+                const pos = this.getMousePosition(e);
+                this.onMouseCb({
+                    button: e.button,
+                    col: pos.col,
+                    row: pos.row,
+                    type: "move",
+                    ctrlKey: e.ctrlKey,
+                    altKey: e.altKey,
+                    shiftKey: e.shiftKey,
+                });
+            },
+            { signal: this.eventAbortController.signal },
+        );
+        this.mainEl.on(
+            "wheel",
+            (e) => {
+                const pos = this.getMousePosition(e);
+                let button = 4; // wheel up
+                if (e.deltaY > 0)
+                    button = 5; // wheel down
+                else if (e.deltaX > 0)
+                    button = 7; // wheel right
+                else if (e.deltaX < 0) button = 6; // wheel left
+                this.onMouseCb({
+                    button,
+                    col: pos.col,
+                    row: pos.row,
+                    type: "wheel",
+                    ctrlKey: e.ctrlKey,
+                    altKey: e.altKey,
+                    shiftKey: e.shiftKey,
+                });
             },
             { signal: this.eventAbortController.signal },
         );
@@ -350,6 +458,9 @@ export class DomRender implements IRender {
     }
     onKey(fn: (data: { key: string; ctrlKey?: boolean; altKey?: boolean; shiftKey?: boolean }) => void) {
         this.onKeyCb = fn;
+    }
+    onMouse(fn: (event: MouseEvent) => void) {
+        this.onMouseCb = fn;
     }
 
     newAltRender(): IRender {

@@ -1,5 +1,5 @@
 import { wcswidth } from "simple-wcswidth";
-import { key2seq, parseOut, type ShOutputItem, type ShOutputItemText } from "./parser_out";
+import { type MouseEvent, type ShOutputItem, type ShOutputItemText, key2seq, mouse2seq, parseOut } from "./parser_out";
 
 type ClassicalCR = {
     col: number; // limit warp
@@ -22,6 +22,7 @@ export interface IRender {
     updateInputCursor(row: number, col: number);
     onInput(fn: (data: string) => void);
     onKey(fn: (data: { key: string; ctrlKey?: boolean; altKey?: boolean; shiftKey?: boolean }) => void);
+    onMouse(fn: (event: MouseEvent) => void);
     newAltRender(): IRender;
     finish();
     destroy();
@@ -80,8 +81,10 @@ export class Render {
     private parent: Render | null = null;
     private mode = new Set<string>();
     private data: Partial<{ cursor: { col: number; row: number }[] }> & {
+        mouseMode: 0 | 9 | 1000 | 1001 | 1002 | 1003;
         tab: TabStops;
     } = {
+        mouseMode: 0,
         tab: new TabStops(),
     };
     private zuobiao: ZuoBiao = { x: 0, y: 0 };
@@ -108,6 +111,9 @@ export class Render {
         });
         this.irender.onKey((data) => {
             this.inputKey(data);
+        });
+        this.irender.onMouse((event) => {
+            this.inputMouse(event);
         });
         this.setSize(this.size.rows, this.size.cols);
         this.rNewLine();
@@ -302,6 +308,19 @@ export class Render {
                         }
                     }
                 }
+                if (
+                    item.mode === "?9" ||
+                    item.mode === "?1000" ||
+                    item.mode === "?1001" ||
+                    item.mode === "?1002" ||
+                    item.mode === "?1003"
+                ) {
+                    if (item.action === "set") {
+                        this.data.mouseMode = Number.parseInt(item.mode.slice(1)) as 9 | 1000 | 1001 | 1002 | 1003;
+                    } else if (item.action === "reset") {
+                        this.data.mouseMode = 0;
+                    }
+                }
             } else if (item.type === "text") {
                 this.ensureLine(this.zuobiao.y);
                 const chars = Array.from(this.seg.segment(item.text)).map((i) => {
@@ -358,6 +377,13 @@ export class Render {
     }
     inputKey(ke: { key: string; ctrlKey?: boolean; altKey?: boolean; shiftKey?: boolean }) {
         this.onDataCb(key2seq(ke));
+    }
+    inputMouse(event: MouseEvent) {
+        if (this.data.mouseMode === 0) return;
+        const seq = mouse2seq(event, this.data.mouseMode);
+        if (seq) {
+            this.onDataCb(seq);
+        }
     }
 
     onData(fn: (data: string) => void) {

@@ -832,3 +832,82 @@ export function key2seq(keyevent: { key: string; ctrlKey?: boolean; altKey?: boo
     }
     return seq;
 }
+
+export type MouseEvent = {
+    button: number; // 0: left, 1: middle, 2: right, 3: release, 4: wheel up, 5: wheel down, 6: wheel left, 7: wheel right
+    col: number; // 1-based column
+    row: number; // 1-based row
+    type: "press" | "release" | "move" | "wheel";
+    ctrlKey?: boolean;
+    altKey?: boolean;
+    shiftKey?: boolean;
+};
+
+export function mouse2seq(event: MouseEvent, mouseMode: number): string {
+    // 根据 mouseMode 决定是否发送事件
+    if (mouseMode === 0) return "";
+
+    // 检查事件类型是否应该被发送
+    if (mouseMode === 9 && event.type !== "press") return "";
+    if (mouseMode === 1000 && event.type !== "press" && event.type !== "release" && event.type !== "wheel") return "";
+    if (mouseMode === 1001 && event.type !== "press" && event.type !== "release" && event.type !== "wheel") return "";
+    if (
+        mouseMode === 1002 &&
+        event.type !== "press" &&
+        event.type !== "release" &&
+        event.type !== "move" &&
+        event.type !== "wheel"
+    )
+        return "";
+    if (
+        mouseMode === 1003 &&
+        event.type !== "press" &&
+        event.type !== "release" &&
+        event.type !== "move" &&
+        event.type !== "wheel"
+    )
+        return "";
+
+    // 计算 btn 参数
+    let btn = 0;
+
+    // 按钮 ID
+    if (event.type === "release") {
+        btn = 3; // 释放事件使用按钮 ID 3
+    } else if (event.type === "wheel") {
+        if (event.button === 4)
+            btn = 4; // wheel up
+        else if (event.button === 5)
+            btn = 5; // wheel down
+        else if (event.button === 6)
+            btn = 6; // wheel left
+        else if (event.button === 7) btn = 7; // wheel right
+    } else {
+        btn = event.button; // 0, 1, 2
+    }
+
+    // 添加修饰键位
+    if (event.shiftKey) btn |= 4;
+    if (event.altKey) btn |= 8;
+    if (event.ctrlKey) btn |= 16;
+
+    // 添加移动位（如果适用）
+    if (event.type === "move") {
+        btn |= 32;
+    }
+
+    // 确保坐标在有效范围内 (1-223)
+    const col = Math.max(1, Math.min(event.col, 223));
+    const row = Math.max(1, Math.min(event.row, 223));
+
+    // 编码坐标为字节 (值 + 32)
+    const btnByte = btn + 32;
+    const colByte = col + 32;
+    const rowByte = row + 32;
+
+    // 构建序列
+    // 默认格式: ESC [ M btn col row
+    const seq = `\x1b[M${String.fromCharCode(btnByte)}${String.fromCharCode(colByte)}${String.fromCharCode(rowByte)}`;
+
+    return seq;
+}
