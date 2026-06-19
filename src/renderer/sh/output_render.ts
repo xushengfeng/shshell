@@ -87,7 +87,7 @@ export class Render {
     // 用于存储渲染后的单元格信息，2单位宽字符占两个单元格，第一个和其它的一样，第二个为is2Width
     // 提供渲染元素 原始坐标 等信息 不处理自动换行，应该由cursor自动计算
     // 使用 ZuoBiao 表示内部坐标
-    private renderedLines: { chars: ({ el: HTMLElement; char: string } | { is2Width: boolean })[] }[] = [];
+    private renderedLines: { chars: [] }[] = [];
 
     private dataRest = {
         rest: "",
