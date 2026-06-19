@@ -187,7 +187,6 @@ export class Render {
     write(data: string) {
         const l = parseOut(this.dataRest.rest + data);
         this.dataRest.rest = l.rest;
-        console.log(this.dataRest.rest + data, l);
         if (l.items.find((i) => i.type === "other")) {
             console.warn(
                 "存在未处理的输出项，可能存在bug",
