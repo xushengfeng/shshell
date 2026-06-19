@@ -843,7 +843,7 @@ export type MouseEvent = {
     shiftKey?: boolean;
 };
 
-export function mouse2seq(event: MouseEvent, mouseMode: number): string {
+export function mouse2seq(event: MouseEvent, mouseMode: number, mouseReportMode: number): string {
     // 根据 mouseMode 决定是否发送事件
     if (mouseMode === 0) return "";
 
@@ -869,22 +869,27 @@ export function mouse2seq(event: MouseEvent, mouseMode: number): string {
         return "";
 
     // 计算 btn 参数
-    let btn = 0;
+    let buttonId = 0;
 
     // 按钮 ID
     if (event.type === "release") {
-        btn = 3; // 释放事件使用按钮 ID 3
+        buttonId = 3; // 释放事件使用按钮 ID 3
     } else if (event.type === "wheel") {
         if (event.button === 4)
-            btn = 4; // wheel up
+            buttonId = 4; // wheel up
         else if (event.button === 5)
-            btn = 5; // wheel down
+            buttonId = 5; // wheel down
         else if (event.button === 6)
-            btn = 6; // wheel left
-        else if (event.button === 7) btn = 7; // wheel right
+            buttonId = 6; // wheel left
+        else if (event.button === 7) buttonId = 7; // wheel right
     } else {
-        btn = event.button; // 0, 1, 2
+        buttonId = event.button; // 0, 1, 2
     }
+
+    // 编码按钮 ID：低两位直接使用，位 2 映射到 64，位 3 映射到 128
+    let btn = buttonId & 0x03; // 低两位
+    if (buttonId & 0x04) btn |= 64; // 位 2 映射到 64
+    if (buttonId & 0x08) btn |= 128; // 位 3 映射到 128
 
     // 添加修饰键位
     if (event.shiftKey) btn |= 4;
@@ -896,18 +901,48 @@ export function mouse2seq(event: MouseEvent, mouseMode: number): string {
         btn |= 32;
     }
 
-    // 确保坐标在有效范围内 (1-223)
+    // 根据报告模式处理坐标
+    if (mouseReportMode === 1006) {
+        // SGR 扩展模式：ESC [ < btn ; col ; row M/m
+        // 按下/移动使用 M，释放使用 m
+        const finalChar = event.type === "release" ? "m" : "M";
+        return `\x1b[<${btn};${event.col};${event.row}${finalChar}`;
+    }
+
+    if (mouseReportMode === 1015) {
+        // urxvt 模式：ESC [ btn ; col ; row M
+        // btn 是值 + 32 的十进制表示
+        const btnValue = btn + 32;
+        return `\x1b[${btnValue};${event.col};${event.row}M`;
+    }
+
+    // 默认格式和 ?1005 格式都有范围限制 (1-223)
     const col = Math.max(1, Math.min(event.col, 223));
     const row = Math.max(1, Math.min(event.row, 223));
 
-    // 编码坐标为字节 (值 + 32)
+    if (mouseReportMode === 1005) {
+        // UTF-8 鼠标编码：与默认格式类似，但使用 UTF-8 编码多字节值
+        // 对于值 < 96，编码与默认格式相同
+        // 对于值 >= 96，使用 UTF-8 编码
+        const btnByte = btn + 32;
+        const colByte = col + 32;
+        const rowByte = row + 32;
+
+        // 检查是否需要 UTF-8 编码（值 >= 96）
+        if (btnByte >= 96 || colByte >= 96 || rowByte >= 96) {
+            // 使用 UTF-8 编码
+            const btnStr = String.fromCodePoint(btnByte + 32);
+            const colStr = String.fromCodePoint(colByte + 32);
+            const rowStr = String.fromCodePoint(rowByte + 32);
+            return `\x1b[M${btnStr}${colStr}${rowStr}`;
+        }
+        // 否则使用默认格式
+    }
+
+    // 默认格式：ESC [ M btn col row
     const btnByte = btn + 32;
     const colByte = col + 32;
     const rowByte = row + 32;
 
-    // 构建序列
-    // 默认格式: ESC [ M btn col row
-    const seq = `\x1b[M${String.fromCharCode(btnByte)}${String.fromCharCode(colByte)}${String.fromCharCode(rowByte)}`;
-
-    return seq;
+    return `\x1b[M${String.fromCharCode(btnByte)}${String.fromCharCode(colByte)}${String.fromCharCode(rowByte)}`;
 }

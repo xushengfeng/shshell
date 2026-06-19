@@ -82,9 +82,11 @@ export class Render {
     private mode = new Set<string>();
     private data: Partial<{ cursor: { col: number; row: number }[] }> & {
         mouseMode: 0 | 9 | 1000 | 1001 | 1002 | 1003;
+        mouseReportMode: 0 | 1005 | 1006 | 1015; // 0: default, 1005: UTF-8, 1006: SGR, 1015: urxvt
         tab: TabStops;
     } = {
         mouseMode: 0,
+        mouseReportMode: 0,
         tab: new TabStops(),
     };
     private zuobiao: ZuoBiao = { x: 0, y: 0 };
@@ -321,6 +323,13 @@ export class Render {
                         this.data.mouseMode = 0;
                     }
                 }
+                if (item.mode === "?1005" || item.mode === "?1006" || item.mode === "?1015") {
+                    if (item.action === "set") {
+                        this.data.mouseReportMode = Number.parseInt(item.mode.slice(1)) as 1005 | 1006 | 1015;
+                    } else if (item.action === "reset") {
+                        this.data.mouseReportMode = 0;
+                    }
+                }
             } else if (item.type === "text") {
                 this.ensureLine(this.zuobiao.y);
                 const chars = Array.from(this.seg.segment(item.text)).map((i) => {
@@ -380,7 +389,7 @@ export class Render {
     }
     inputMouse(event: MouseEvent) {
         if (this.data.mouseMode === 0) return;
-        const seq = mouse2seq(event, this.data.mouseMode);
+        const seq = mouse2seq(event, this.data.mouseMode, this.data.mouseReportMode);
         if (seq) {
             this.onDataCb(seq);
         }
