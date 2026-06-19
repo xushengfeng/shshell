@@ -26,6 +26,44 @@ export interface IRender {
     destroy();
 }
 
+class TabStops {
+    private stops = new Set<number>();
+    private noStops = new Set<number>();
+    private useDefaultStops = true;
+
+    clearStop(col: number) {
+        this.stops.delete(col);
+        this.noStops.add(col);
+    }
+    setStop(col: number) {
+        this.noStops.delete(col);
+        this.stops.add(col);
+    }
+    isStop(col: number) {
+        if (this.noStops.has(col)) return false;
+        if (this.stops.has(col)) return true;
+        if (this.useDefaultStops) return col % 8 === 0;
+        return false;
+    }
+    clearAllStops() {
+        this.stops.clear();
+        this.noStops.clear();
+        this.useDefaultStops = false;
+    }
+    resetDefaultStops() {
+        this.stops.clear();
+        this.noStops.clear();
+        this.useDefaultStops = true;
+    }
+    nextStop(col: number) {
+        let next = col + 1;
+        while (!this.isStop(next)) {
+            next++;
+        }
+        return next;
+    }
+}
+
 export class Render {
     private irender: IRender;
     private seg = new Intl.Segmenter("en", { granularity: "grapheme" });
@@ -40,7 +78,11 @@ export class Render {
     private altbuf: Render | null = null;
     private parent: Render | null = null;
     private mode = new Set<string>();
-    private data: Partial<{ cursor: { col: number; row: number }[] }> = {};
+    private data: Partial<{ cursor: { col: number; row: number }[] }> & {
+        tab: TabStops;
+    } = {
+        tab: new TabStops(),
+    };
     private zuobiao: ZuoBiao = { x: 0, y: 0 };
     // 用于存储渲染后的单元格信息，2单位宽字符占两个单元格，第一个和其它的一样，第二个为is2Width
     // 提供渲染元素 原始坐标 等信息 不处理自动换行，应该由cursor自动计算
@@ -218,6 +260,16 @@ export class Render {
                     } else if (item.row.type === "rel") {
                         this.setCursor({ row: this.cursor.row + item.row.v, col: this.cursor.col });
                     }
+                }
+            } else if (item.type === "tab") {
+                if (item.xType === "nextTab") {
+                    this.setCursor({ row: this.cursor.row, col: this.data.tab.nextStop(this.cursor.col) });
+                } else if (item.xType === "clearTab") {
+                    this.data.tab.clearStop(this.cursor.col);
+                } else if (item.xType === "setTab") {
+                    this.data.tab.setStop(this.cursor.col);
+                } else if (item.xType === "clearAllTab") {
+                    this.data.tab.clearAllStops();
                 }
             } else if (item.type === "mode") {
                 if (item.action === "set") {

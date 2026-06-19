@@ -41,6 +41,11 @@ export type ShOutputItemCursor = {
     row?: { type: "abs" | "rel"; v: number };
     col?: { type: "abs" | "rel"; v: number };
 };
+export type ShOutputItemTab = {
+    type: "tab";
+    // todo style?
+    xType: "nextTab" | "setTab" | "clearTab" | "clearAllTab";
+};
 export type ShOutputItemScroll = {
     type: "scroll";
     row?: number;
@@ -69,6 +74,7 @@ export type ShOutputItem =
     | ShOutputItemText
     | ShOutputItemScroll
     | ShOutputItemCursor
+    | ShOutputItemTab
     | ShOutputItemEdit
     | ShOutputItemMode
     | ShOutputItemRaw
@@ -502,6 +508,19 @@ function processToken(
                 applySgr(currentStyle, params);
                 return { items: [], style: currentStyle };
             }
+            if (last === "g") {
+                const p = params[0] || 0;
+                if (p === 0) {
+                    return {
+                        items: [{ type: "tab", xType: "clearTab" }],
+                    };
+                }
+                if (p === 3) {
+                    return {
+                        items: [{ type: "tab", xType: "clearAllTab" }],
+                    };
+                }
+            }
             if (last === "h") {
                 const p = x.startsWith("?") ? parseCSIContent(x.slice(1)) : params;
                 return {
@@ -607,13 +626,7 @@ function processToken(
             }
             if (last === "I") {
                 return {
-                    items: [
-                        {
-                            type: "text",
-                            text: "    ".repeat(params[0] || 1),
-                            style: { ...currentStyle },
-                        },
-                    ],
+                    items: Array<ShOutputItemTab>(params[0] || 1).fill({ type: "tab", xType: "nextTab" }),
                 };
             }
             if (last === "J") {
@@ -663,6 +676,18 @@ function processToken(
             }
             if (last === "P") {
             }
+            if (last === "W") {
+                const p = params[0] || 0;
+                if (p === 0) {
+                    return { items: [{ type: "tab", xType: "setTab" }] };
+                }
+                if (p === 2) {
+                    return { items: [{ type: "tab", xType: "clearTab" }] };
+                }
+                if (p === 5) {
+                    return { items: [{ type: "tab", xType: "clearAllTab" }] };
+                }
+            }
             if (last === "c") {
                 return {
                     items: [{ type: "raw", xType: "csi", ps: params.map((i) => String(i)), end: "c" }],
@@ -678,6 +703,11 @@ function processToken(
             if (x === "8") {
                 return {
                     items: [{ type: "raw", xType: "esc", end: "8", ps: [] }],
+                };
+            }
+            if (x === "H") {
+                return {
+                    items: [{ type: "tab", xType: "setTab" }],
                 };
             }
         }
@@ -715,9 +745,8 @@ function processToken(
             return {
                 items: [
                     {
-                        type: "text",
-                        text: "    ",
-                        style: { ...currentStyle },
+                        type: "tab",
+                        xType: "nextTab",
                     },
                 ],
             };

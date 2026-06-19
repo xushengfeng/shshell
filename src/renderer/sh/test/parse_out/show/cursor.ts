@@ -46,6 +46,7 @@ console.log();
 console.log("tab");
 process.stdout.write("1234\t5678");
 // 结论：tab转成空格
+// 修改 需要对齐8倍
 
 console.log();
 console.log("\\n");
