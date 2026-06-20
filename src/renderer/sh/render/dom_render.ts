@@ -281,89 +281,31 @@ export class DomRender implements IRender {
         this.inputCursorInputEl.el.focus();
     }
 
-    private rSet(el: HTMLElement, char: string, width: number, zb: { x: number; y: number }): { width: number } {
+    private rSet(el: HTMLElement, char: string, width: number, zb: { x: number; y: number }) {
         const y = zb.y;
         const x = zb.x;
 
         const { chars: line, el: lel } = this.renderedLines[y];
-        function set(el: HTMLElement, _char: string, i: number) {
-            const w = _char === char ? width : wcswidth(_char);
-            pack(el)
-                .style({
-                    width: w === 2 ? "2ch" : "1ch",
-                })
-                .class(girdItemClass);
-            const has = line[i];
-            if (has) {
-                if ("el" in has) {
-                    has.el.replaceWith(el);
-                } else {
-                    const last = line[i - 1];
-                    if (last && "el" in last) {
-                        last.el.after(el);
-                    } else {
-                        const pre = line[i + 1];
-                        if (pre && "el" in pre) {
-                            pre.el.before(el);
-                        } else {
-                            console.warn("无法定位单元格位置，可能数据结构有误", line, i);
-                            console.trace();
-                            lel.appendChild(el);
-                        }
+
+        if (width === 0) {
+            line[x] = { is2Width: true };
+        } else {
+            const last = line[x - 1];
+            if (last) {
+                if ("el" in last) last.el.after(el);
+                else {
+                    const lastlast = line[x - 2];
+                    if (lastlast && "el" in lastlast) lastlast.el.after(el);
+                    else {
+                        console.warn("无法定位单元格位置，可能数据结构有误", line, x);
+                        console.trace();
                     }
                 }
             } else {
-                lel.appendChild(el); // todo 性能
+                lel.prepend(el);
             }
-            line[i] = { el, char: _char };
+            line[x] = { el, char };
         }
-        function setAs0(i: number) {
-            const has = line[i];
-            if (has && "el" in has) {
-                has.el.remove();
-            }
-            line[i] = { is2Width: true };
-        }
-        if (!line[x]) {
-            // 扩展行内（列）
-            const lineEndStart = line.length;
-            for (let i = lineEndStart; i < x; i++) {
-                set(txt(" ").el, " ", i);
-            }
-            if (width === 2) {
-                set(el, char, x);
-                setAs0(x + 1);
-            } else {
-                set(el, char, x);
-            }
-        } else {
-            if (width === 2) {
-                if ("is2Width" in line[x]) {
-                    set(txt(" ").el, " ", x - 1);
-                }
-                if (line[x + 1] && "is2Width" in line[x + 1]) {
-                    set(el, char, x);
-                } else if (line[x + 2] && "is2Width" in line[x + 2]) {
-                    set(el, char, x);
-                    setAs0(x + 1);
-                    set(txt(" ").el, " ", x + 2);
-                } else {
-                    set(el, char, x);
-                    setAs0(x + 1);
-                }
-            } else {
-                if ("is2Width" in line[x]) {
-                    set(txt(" ").el, " ", x - 1);
-                    set(el, char, x);
-                } else {
-                    if (line[x + 1] && "is2Width" in line[x + 1]) {
-                        set(el, char, x);
-                        set(txt(" ").el, " ", x + 1);
-                    } else set(el, char, x);
-                }
-            }
-        }
-        return { width };
     }
     setBlankSpace(zb: { x: number; y: number }): void {
         this.rSet(txt(" ").el, " ", 1, zb);
@@ -372,7 +314,7 @@ export class DomRender implements IRender {
         items: { style?: ShOutputItemText["style"]; chars: { t: string; width: number }[] },
         zb: { x: number; y: number },
     ) {
-        const renderText = (t: string, style: ShOutputItemText["style"] | undefined) => {
+        const renderText = (t: string, w: number, style: ShOutputItemText["style"] | undefined) => {
             const textEl = txt(t);
             // 应用样式
             if (style) {
@@ -403,12 +345,28 @@ export class DomRender implements IRender {
                 if (s.hidden) textEl.style({ visibility: "hidden" });
                 if (s.dim) textEl.style({ opacity: "0.6" });
             }
-            return textEl;
+            return textEl
+                .style({
+                    width: w === 2 ? "2ch" : "1ch",
+                })
+                .class(girdItemClass);
         };
         const zuobiao = { x: zb.x, y: zb.y };
+        const line = this.renderedLines[zb.y].chars;
+        const rmEls = line.slice(zuobiao.x, zuobiao.x + items.chars.length);
+        for (const rm of rmEls) {
+            if ("el" in rm) {
+                rm.el.remove();
+            }
+        }
         for (const { t, width } of items.chars) {
-            const w = this.rSet(renderText(t, items.style).el, t, width, zuobiao);
-            zuobiao.x += w.width;
+            if (width === 0) {
+                this.rSet(txt("").el, "", 0, zuobiao);
+                zuobiao.x += 1;
+                continue;
+            }
+            this.rSet(renderText(t, width, items.style).el, t, width, zuobiao);
+            zuobiao.x += 1;
         }
     }
 

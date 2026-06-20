@@ -12,7 +12,6 @@ type ZuoBiao = {
 };
 
 export interface IRender {
-    setBlankSpace(zb: ZuoBiao);
     setText(item: { style?: ShOutputItemText["style"]; chars: { t: string; width: number }[] }, zb: ZuoBiao);
     scrollToNewLine(): boolean;
     addNewLine();
@@ -93,7 +92,7 @@ export class Render {
     // 用于存储渲染后的单元格信息，2单位宽字符占两个单元格，第一个和其它的一样，第二个为is2Width
     // 提供渲染元素 原始坐标 等信息 不处理自动换行，应该由cursor自动计算
     // 使用 ZuoBiao 表示内部坐标
-    private renderedLines: { chars: [] }[] = [];
+    private renderedLines: { chars: ({ char: string } | { is2Width: boolean })[] }[] = [];
 
     private dataRest = {
         rest: "",
@@ -236,13 +235,15 @@ export class Render {
                     for (let i = this.cursor.col; i < this.size.cols; i++) {
                         const zb = this.classicalToZuoBiao({ row: this.cursor.row, col: i });
                         this.ensureLine(zb.y);
-                        this.irender.setBlankSpace(zb);
+                        this.setText({ chars: [{ t: " ", width: 1 }] }, zb);
+                        this.irender.setText({ chars: [{ t: " ", width: 1 }] }, zb);
                     }
                 } else if (item.xType === "toSpaceLeft") {
                     for (let i = 0; i <= this.cursor.col; i++) {
                         const zb = this.classicalToZuoBiao({ row: this.cursor.row, col: i });
                         this.ensureLine(zb.y);
-                        this.irender.setBlankSpace(zb);
+                        this.setText({ chars: [{ t: " ", width: 1 }] }, zb);
+                        this.irender.setText({ chars: [{ t: " ", width: 1 }] }, zb);
                     }
                 } else if (item.xType === "deleteLineBelowAll") {
                     const count = this.renderedLines.length - this.zuobiao.y - 1;
@@ -335,12 +336,21 @@ export class Render {
                     const t = i.segment;
                     return { t, width: wcswidth(t) };
                 });
-                this.irender.setText(
+
+                const f = this.setText(
                     {
                         style: item.style,
                         chars,
                     },
                     this.zuobiao,
+                );
+
+                this.irender.setText(
+                    {
+                        style: item.style,
+                        chars: f.chars.map((i) => ({ t: i.char, width: i.width })),
+                    },
+                    { x: f.start, y: this.zuobiao.y },
                 );
                 this.zuobiao.x += chars.reduce((sum, i) => sum + i.width, 0);
                 this.cursor = this.zuoBiaoToClassical(this.zuobiao);
@@ -371,6 +381,87 @@ export class Render {
             }
         }
     }
+    private setText(item: { style?: ShOutputItemText["style"]; chars: { t: string; width: number }[] }, zb: ZuoBiao) {
+        if (!this.renderedLines[zb.y]) {
+            console.warn("尝试在不存在的行设置文本，可能数据结构有误", zb);
+            return { start: zb.x, chars: [] };
+        }
+        const line = this.renderedLines[zb.y].chars;
+        const fillLine = new Map<number, { char: string; width: number }>();
+        function set(_char: string, i: number, w: number) {
+            line[i] = { char: _char };
+            fillLine.set(i, { char: _char, width: w });
+        }
+        function setAs0(i: number) {
+            line[i] = { is2Width: true };
+            fillLine.set(i, { char: "", width: 0 });
+        }
+
+        if (zb.x >= line.length + 1) {
+            // 扩展行内（列）
+            const lineEndStart = line.length;
+            for (let i = lineEndStart; i < zb.x; i++) {
+                set(" ", i, 1);
+            }
+        }
+
+        let x = zb.x;
+        for (const { t: char, width } of item.chars) {
+            if (!line[x]) {
+                // 扩展行内（列）
+                const lineEndStart = line.length;
+                for (let i = lineEndStart; i < x; i++) {
+                    set(" ", i, 1);
+                }
+                if (width === 2) {
+                    set(char, x, width);
+                    setAs0(x + 1);
+                } else {
+                    set(char, x, width);
+                }
+            } else {
+                if (width === 2) {
+                    if ("is2Width" in line[x]) {
+                        set(" ", x - 1, 1);
+                    }
+                    if (line[x + 1] && "is2Width" in line[x + 1]) {
+                        set(char, x, width);
+                    } else if (line[x + 2] && "is2Width" in line[x + 2]) {
+                        set(char, x, width);
+                        setAs0(x + 1);
+                        set(" ", x + 2, 1);
+                    } else {
+                        set(char, x, width);
+                        setAs0(x + 1);
+                    }
+                } else {
+                    if ("is2Width" in line[x]) {
+                        set(" ", x - 1, 1);
+                        set(char, x, width);
+                    } else {
+                        if (line[x + 1] && "is2Width" in line[x + 1]) {
+                            set(char, x, width);
+                            set(" ", x + 1, 1);
+                        } else set(char, x, width);
+                    }
+                }
+            }
+            x += width;
+        }
+
+        const smallIndex = Array.from(fillLine.keys()).sort((a, b) => a - b)[0];
+        const fillLineArr: { char: string; width: number }[] = [];
+        for (let i = 0; i < fillLine.size; i++) {
+            const item = fillLine.get(smallIndex + i);
+            if (item) {
+                fillLineArr.push(item);
+            } else {
+                console.warn("fillLine数据不连续，可能存在bug", fillLine, zb);
+                fillLineArr.push({ char: " ", width: 1 });
+            }
+        }
+        return { start: smallIndex, chars: fillLineArr };
+    }
     setSize(rows: number, cols: number) {
         this.size.rows = rows;
         this.size.cols = cols;
@@ -399,6 +490,10 @@ export class Render {
     }
     onScroll(fn: () => void) {
         this.onScrollCb = fn;
+    }
+
+    getRenderedLines() {
+        return this.renderedLines;
     }
 
     finish() {
