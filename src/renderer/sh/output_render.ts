@@ -1,4 +1,5 @@
-import { wcswidth } from "simple-wcswidth";
+import wcwidth from "wcwidth-o1";
+
 import { type MouseEvent, type ShOutputItem, type ShOutputItemText, key2seq, mouse2seq, parseOut } from "./parser_out";
 
 type ClassicalCR = {
@@ -334,7 +335,7 @@ export class Render {
                 this.ensureLine(this.zuobiao.y);
                 const chars = Array.from(this.seg.segment(item.text)).map((i) => {
                     const t = i.segment;
-                    return { t, width: wcswidth(t) };
+                    return { t, width: wcwidth(t) };
                 });
 
                 const f = this.setText(

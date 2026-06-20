@@ -1,5 +1,4 @@
-import { addClass, input, pack, txt, view } from "dkh-ui";
-import { wcswidth } from "simple-wcswidth";
+import { addClass, input, txt, view } from "dkh-ui";
 import type { IRender } from "../output_render";
 import type { ShOutputItemText, MouseEvent } from "../parser_out";
 
