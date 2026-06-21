@@ -468,6 +468,9 @@ export class Render {
         this.size.cols = cols;
         this.irender.setSize(rows, cols);
     }
+    getSize() {
+        return { ...this.size };
+    }
     setAsAltBuf(parent: Render) {
         this.parent = parent;
     }

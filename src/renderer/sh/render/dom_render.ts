@@ -108,23 +108,30 @@ export class DomRender implements IRender {
                     });
             }
         });
+    private measureCharSize() {
+        if (this.charWidth !== null && this.charHeight !== null) return;
+        // 测量 1ch 的宽度和 2ch 的高度，使用 mainEl 的字体样式
+        const temp = document.createElement("div");
+        temp.style.position = "absolute";
+        temp.style.visibility = "hidden";
+        temp.style.width = "1ch";
+        temp.style.height = "2ch";
+        temp.style.fontFamily = "inherit";
+        temp.style.fontSize = "inherit";
+        temp.style.lineHeight = "inherit";
+        // 插入到 mainEl 以继承样式
+        this.mainEl.el.appendChild(temp);
+        const rect = temp.getBoundingClientRect();
+        this.charWidth = rect.width;
+        this.charHeight = rect.height; // 这是 2ch 的高度
+        this.mainEl.el.removeChild(temp);
+    }
     private getMousePosition(e: globalThis.MouseEvent): { col: number; row: number } {
         if (this.charWidth === null || this.charHeight === null) {
-            // 测量 1ch 的宽度和 2ch 的高度，使用 mainEl 的字体样式
-            const temp = document.createElement("div");
-            temp.style.position = "absolute";
-            temp.style.visibility = "hidden";
-            temp.style.width = "1ch";
-            temp.style.height = "2ch";
-            temp.style.fontFamily = "inherit";
-            temp.style.fontSize = "inherit";
-            temp.style.lineHeight = "inherit";
-            // 插入到 mainEl 以继承样式
-            this.mainEl.el.appendChild(temp);
-            const rect = temp.getBoundingClientRect();
-            this.charWidth = rect.width;
-            this.charHeight = rect.height; // 这是 2ch 的高度
-            this.mainEl.el.removeChild(temp);
+            this.measureCharSize();
+            if (this.charWidth === null || this.charHeight === null) {
+                throw new Error("无法测量字符尺寸");
+            }
         }
         const rect = this.mainEl.el.getBoundingClientRect();
         const x = e.clientX - rect.left;
@@ -273,7 +280,7 @@ export class DomRender implements IRender {
             );
 
         this.el
-            .style({ position: "relative", overflowY: "auto" })
+            .style({ position: "relative" })
             .add(this.inputCursorInputEl)
             .add(this.inputCursorDisplayEl)
             .add(this.inputCursorComposeEl);
@@ -422,12 +429,9 @@ export class DomRender implements IRender {
         // todo blink
     }
 
-    setSize(rows: number, cols: number) {
+    setSize(_rows: number, cols: number) {
         this.mainEl.style({
             width: `${cols}ch`,
-        });
-        this.el.style({
-            maxHeight: `${rows * 2}ch`,
         });
         // cache
     }
@@ -440,6 +444,19 @@ export class DomRender implements IRender {
     }
     onMouse(fn: (event: MouseEvent) => void) {
         this.onMouseCb = fn;
+    }
+
+    px2size(width: number, height: number): { cols: number; rows: number } {
+        if (this.charWidth === null || this.charHeight === null) {
+            this.measureCharSize();
+            if (this.charWidth === null || this.charHeight === null) {
+                throw new Error("无法测量字符尺寸");
+            }
+        }
+        return {
+            cols: Math.floor(width / this.charWidth),
+            rows: Math.floor(height / this.charHeight),
+        };
     }
 
     newAltRender(): IRender {

@@ -44,6 +44,7 @@ class Sh {
         onData: (cb: (data: string) => void) => void;
         onExit: (cb: () => void) => void;
         write: (data: string) => void;
+        resize: (cols: number, rows: number) => void;
     } & (
         | {
               type: "local";
@@ -59,6 +60,7 @@ class Sh {
             let dataCb = (_data: string) => {};
             let exitCb = () => {};
             let writeX = (_data: string) => {};
+            let resizeX = (_cols: number, _rows: number) => {};
             // todo 验证执行
             this.conn?.exec(
                 `${command} ${args.join(" ")}`,
@@ -70,9 +72,13 @@ class Sh {
                     });
                     stream.on("close", () => {
                         exitCb();
+                        resizeX = () => {};
                     });
                     writeX = (data: string) => {
                         stream.write(data);
+                    };
+                    resizeX = (cols: number, rows: number) => {
+                        stream.setWindow(rows, cols, 0, 0);
                     };
                 },
             );
@@ -85,6 +91,9 @@ class Sh {
                 },
                 write: (data: string) => {
                     writeX(data);
+                },
+                resize: (cols: number, rows: number) => {
+                    resizeX(cols, rows);
                 },
                 type: "ssh",
                 _ssh: this.conn,
@@ -112,6 +121,11 @@ class Sh {
             },
             write: (data: string) => {
                 ptyProcess.write(data);
+            },
+            resize: (cols: number, rows: number) => {
+                try {
+                    ptyProcess.resize(cols, rows);
+                } catch (e) {}
             },
             type: "local",
             _local: ptyProcess,
@@ -410,11 +424,10 @@ class Page {
             let rawT = "";
 
             const historyEl = view("y");
-            const bar = view("x").addInto(historyEl);
-            txt("$ ")
-                .add(getInputStyle(command))
+            const bar = view("x")
                 .style({ position: "sticky", top: 0, zIndex: 1, backgroundColor: "#fff" })
-                .addInto(bar);
+                .addInto(historyEl);
+            txt("$ ").add(getInputStyle(command)).addInto(bar);
             bar.add(spacer());
             let _term: Terminal | undefined;
             button("xterm")
@@ -477,10 +490,27 @@ class Page {
                     this.historyEl.el.scrollTop = toScrollTop;
                 }
             });
-            domRender.el.style({ maxHeight: "80vh" });
             outputEl.add(domRender.el);
 
             historyEl.addInto(this.historyEl);
+
+            const { width, height } = this.historyEl.el.getBoundingClientRect();
+            const scrollBarWidth = this.historyEl.el.offsetWidth - this.historyEl.el.clientWidth;
+            const barHeight = bar.el.getBoundingClientRect().height;
+            const size = domRender.px2size(width - scrollBarWidth, height - barHeight);
+            term.setSize(size.rows, size.cols);
+            const resizeObserver = new ResizeObserver((cb) => {
+                for (const entry of cb) {
+                    if (entry.target === this.historyEl.el) {
+                        const { width, height } = entry.contentRect;
+                        const size = domRender.px2size(width - scrollBarWidth, height - barHeight);
+                        term.setSize(size.rows, size.cols);
+                        shProcess.resize(size.cols, size.rows);
+                        console.log("resize", size);
+                    }
+                }
+            });
+            resizeObserver.observe(this.historyEl.el);
 
             historyEl.el.scrollIntoView({ block: "end" });
 
@@ -538,13 +568,13 @@ class Page {
                 }
             }
 
-            console.log("run", com, this.cwd, this.env);
+            console.log("run", com, term.getSize(), this.cwd, this.env);
 
             const sh = op.sh;
 
             const shProcess = sh.run(com[0], com.slice(1), {
-                cols: 80,
-                rows: 30,
+                cols: term.getSize().cols,
+                rows: term.getSize().rows,
                 cwd: this.cwd,
                 env: this.env,
             });
