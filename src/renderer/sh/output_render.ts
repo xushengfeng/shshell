@@ -342,7 +342,6 @@ export class Render {
 
                 const f = this.setText(
                     {
-                        style: item.style,
                         chars,
                     },
                     this.zuobiao,
@@ -384,7 +383,7 @@ export class Render {
             }
         }
     }
-    private setText(item: { style?: ShOutputItemText["style"]; chars: { t: string; width: number }[] }, zb: ZuoBiao) {
+    private setText(item: { chars: { t: string; width: number }[] }, zb: ZuoBiao) {
         if (!this.renderedLines[zb.y]) {
             console.warn("尝试在不存在的行设置文本，可能数据结构有误", zb);
             return { start: zb.x, chars: [] };
@@ -400,13 +399,18 @@ export class Render {
                 fillLine.set(i, { char: t.char, width: 1 });
             }
         }
+
+        let diffStart = zb.x;
+
         function set(_char: string, i: number, w: number) {
             line[i] = { char: _char };
             fillLine.set(i, { char: _char, width: w });
+            diffStart = Math.min(i, diffStart);
         }
         function setAs0(i: number) {
             line[i] = { is2Width: true };
             fillLine.set(i, { char: "", width: 0 });
+            diffStart = Math.min(i, diffStart);
         }
 
         if (zb.x >= line.length + 1) {
@@ -480,7 +484,7 @@ export class Render {
                 fillLineArr.push({ char: " ", width: 1 });
             }
         }
-        return { start: smallIndex, chars: fillLineArr };
+        return { start: diffStart, chars: fillLineArr.slice(diffStart) };
     }
     setSize(rows: number, cols: number) {
         this.size.rows = rows;
