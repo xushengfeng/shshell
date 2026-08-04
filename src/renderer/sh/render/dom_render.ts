@@ -428,6 +428,13 @@ export class DomRender implements IRender {
         });
         // todo blink
     }
+    cursorVisible(v: boolean) {
+        if (v) {
+            this.inputCursorDisplayEl.style({ display: "" });
+        } else {
+            this.inputCursorDisplayEl.style({ display: "none" });
+        }
+    }
 
     setSize(_rows: number, cols: number) {
         this.mainEl.style({

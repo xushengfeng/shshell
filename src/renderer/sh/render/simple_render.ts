@@ -60,6 +60,7 @@ export class SimpleRender implements IRender {
     }
 
     updateInputCursor(_row: number, _col: number) {}
+    cursorVisible() {}
 
     setSize(rows: number, cols: number) {}
 

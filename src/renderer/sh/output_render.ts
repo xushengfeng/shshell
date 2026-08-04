@@ -24,6 +24,7 @@ export interface IRender {
     onKey(fn: (data: { key: string; ctrlKey?: boolean; altKey?: boolean; shiftKey?: boolean }) => void);
     onMouse(fn: (event: MouseEvent) => void);
     newAltRender(): IRender;
+    cursorVisible(v: boolean): void;
     finish();
     destroy();
 }
@@ -332,6 +333,10 @@ export class Render {
                     } else if (item.action === "reset") {
                         this.data.mouseReportMode = 0;
                     }
+                }
+
+                if (item.mode === "?25") {
+                    this.irender.cursorVisible(item.action === "set");
                 }
             } else if (item.type === "text") {
                 this.ensureLine(this.zuobiao.y);
