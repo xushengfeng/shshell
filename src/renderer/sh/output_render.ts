@@ -67,6 +67,7 @@ class TabStops {
 }
 
 export class Render {
+    private op = { strict: false };
     private irender: IRender;
     private seg = new Intl.Segmenter("en", { granularity: "grapheme" });
     private size = {
@@ -106,7 +107,8 @@ export class Render {
     private onDataCb: (data: string) => void = () => {};
     private onScrollCb: () => void = () => {};
 
-    constructor(render: IRender) {
+    constructor(render: IRender, op?: { strict: boolean }) {
+        if (op) this.op = structuredClone(op);
         this.irender = render;
         this.irender.onInput((data) => {
             this.inputText(data);
@@ -389,6 +391,15 @@ export class Render {
         }
         const line = this.renderedLines[zb.y].chars;
         const fillLine = new Map<number, { char: string; width: number }>();
+        for (let i = 0; i < line.length; i++) {
+            const t = line[i];
+            if (line[i + 1] && "is2Width" in line[i + 1] && "char" in t) {
+                fillLine.set(i, { char: t.char, width: 2 });
+                fillLine.set(i + 1, { char: "", width: 0 });
+            } else if ("char" in t) {
+                fillLine.set(i, { char: t.char, width: 1 });
+            }
+        }
         function set(_char: string, i: number, w: number) {
             line[i] = { char: _char };
             fillLine.set(i, { char: _char, width: w });
@@ -457,7 +468,15 @@ export class Render {
             if (item) {
                 fillLineArr.push(item);
             } else {
-                console.warn("fillLine数据不连续，可能存在bug", fillLine, zb);
+                if (this.op.strict) {
+                    throw "fillLine数据不连续";
+                }
+                console.warn(
+                    "fillLine数据不连续，可能存在bug",
+                    structuredClone(fillLine),
+                    structuredClone(zb),
+                    smallIndex + i,
+                );
                 fillLineArr.push({ char: " ", width: 1 });
             }
         }

@@ -7,7 +7,7 @@ import { SimpleRender } from "../../render/simple_render";
 
 function newTerm(row: number, col: number) {
     const render = new SimpleRender();
-    const term = new Render(render);
+    const term = new Render(render, { strict: true });
     term.setSize(row, col);
     return term;
 }
