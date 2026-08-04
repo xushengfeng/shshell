@@ -31,7 +31,14 @@ export function renderMatcher(row: number, col: number) {
                     const renderChar = renderLine[i];
                     const xtermChar = xtermLine.getCell(i);
                     if ("char" in renderChar) {
-                        if (renderChar.char !== xtermChar?.getChars()) return false;
+                        if (renderChar.char !== " " && renderChar.char !== xtermChar?.getChars()) {
+                            console.log(
+                                `${x},${i} not match`,
+                                renderLine,
+                                new Array(i + 1).map((i) => xtermLine.getCell(i)?.getChars()),
+                            );
+                            return false;
+                        }
                     }
                 }
                 return true;
