@@ -495,6 +495,7 @@ export class Render {
         this.size.rows = rows;
         this.size.cols = cols;
         this.irender.setSize(rows, cols);
+        this.altbuf?.setSize(rows, cols);
     }
     getSize() {
         return { ...this.size };
